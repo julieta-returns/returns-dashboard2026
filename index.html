@@ -298,10 +298,22 @@
   }
 
   // Parses the gviz JSONP-wrapped response into an array of plain objects,
-  // keyed by each column's header label (row 1 of the sheet).
+  // keyed by each column's header label (row 1 of the sheet). Guarded with a
+  // timeout so a blocked/hanging request fails fast with a clear message
+  // instead of leaving the page on "Loading…" forever.
   function fetchTab(sheetName) {
-    return fetch(gvizUrl(sheetName), { credentials: 'omit' }).then(function (resp) {
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 12000);
+    return fetch(gvizUrl(sheetName), { credentials: 'omit', signal: controller.signal }).then(function (resp) {
+      clearTimeout(timeout);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status + ' fetching "' + sheetName + '"');
       return resp.text();
+    }, function (err) {
+      clearTimeout(timeout);
+      if (err && err.name === 'AbortError') {
+        throw new Error('Timed out reaching Google Sheets for "' + sheetName + '" (12s) — likely blocked by a firewall/extension, or the request never got a response.');
+      }
+      throw new Error('Network error fetching "' + sheetName + '": ' + err);
     }).then(function (text) {
       var match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/);
       if (!match) throw new Error('Unexpected response for "' + sheetName + '" — sheet probably isn\'t link-shared yet.');
@@ -403,7 +415,11 @@
 
     var anyOk = [weekly, cohort, detail, tickets].some(function (r) { return Array.isArray(r); });
     if (!anyOk) {
-      showBanner('None of the tabs loaded. Most likely the sheet isn\'t shared as "Anyone with the link (Ekster) — Viewer" yet — that\'s what this page reads over. Share → General access → Anyone at ekster.com with the link.');
+      var firstError = [weekly, cohort, detail, tickets].map(function (r) { return r && r.err ? String(r.err.message || r.err) : null; }).filter(Boolean)[0];
+      showBanner(
+        'Most likely the sheet isn\'t shared as "Anyone with the link (Ekster) — Viewer" yet — that\'s what this page reads over. Share → General access → Anyone at ekster.com with the link.' +
+        (firstError ? '<br><br><code>' + firstError.replace(/</g, '&lt;') + '</code>' : '')
+      );
       document.getElementById('asof').textContent = 'Could not load data.';
       return;
     }
