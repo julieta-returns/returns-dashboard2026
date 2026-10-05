@@ -161,35 +161,42 @@
 
   .period-row {
     display: flex;
+    justify-content: center;
     align-items: stretch;
-    gap: 14px;
-    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 auto 8px;
+    width: fit-content;
+    max-width: 100%;
   }
   @media (max-width: 760px) {
-    .period-row { flex-direction: column; }
+    .period-row { flex-direction: column; align-items: stretch; width: auto; }
   }
-  .kpi-stack {
+  .kpi-col {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 0 0 auto;
+    width: 200px;
   }
-  .outcome-card { flex: 0 0 360px; display: flex; flex-direction: column; }
   @media (max-width: 760px) {
-    .outcome-card { flex: none; }
+    .kpi-col { width: auto; }
+  }
+  .outcome-card { flex: 0 0 auto; width: 260px; display: flex; flex-direction: column; }
+  @media (max-width: 760px) {
+    .outcome-card { width: auto; }
   }
   .kpi {
     background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 14px 16px;
+    padding: 10px 14px;
     flex: 1;
   }
-  .kpi .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
-  .kpi .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
-  .kpi .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-  .kpi .delta { font-size: 12px; margin-top: 4px; color: var(--text-secondary); }
+  .kpi .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+  .kpi .value { font-size: 21px; font-weight: 600; line-height: 1.1; }
+  .kpi .sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .kpi .delta { font-size: 11px; margin-top: 3px; color: var(--text-secondary); }
 
   .grid {
     display: grid;
@@ -418,15 +425,57 @@
   }
   .comment-row:last-child { border-bottom: none; }
   .comment-row .meta { color: var(--text-muted); font-size: 11px; margin-bottom: 2px; }
+
+  .theme-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .theme-toggle:hover { color: var(--text-primary); }
+
+  .back-to-top {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .back-to-top.show { display: flex; }
+  .back-to-top:hover { color: var(--text-primary); }
 </style>
 </head>
 <body>
 
-<header>
+<header style="position: relative;">
   <h1>Returns dashboard</h1>
   <p>Loop Returns × Shopify, read live from the CS Dashboard 2026 sheet.</p>
   <div class="asof" id="asof">Loading…</div>
+  <button type="button" class="theme-toggle" id="theme-toggle" title="Toggle dark / light mode" aria-label="Toggle dark / light mode">🌙</button>
 </header>
+
+<button type="button" class="back-to-top" id="back-to-top" title="Back to top" aria-label="Back to top">↑</button>
 
 <div id="banner"></div>
 
@@ -448,7 +497,7 @@
 
   <div class="section-label">Selected period</div>
   <section class="period-row">
-    <div class="kpi-stack">
+    <div class="kpi-col">
       <div class="kpi"><div class="label">Return rate — last matured cohort</div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
       <div class="kpi">
         <div class="label">Returns</div>
@@ -456,13 +505,17 @@
         <div class="delta" id="kpi-count-delta"></div>
         <div class="sub" id="kpi-count-products"></div>
       </div>
+    </div>
+
+    <div class="kpi-col">
       <div class="kpi"><div class="label">Avg days to return</div><div class="value" id="kpi-days">—</div><div class="delta" id="kpi-days-delta"></div></div>
+      <div class="kpi"><div class="label">CSAT — return tickets</div><div class="value" id="kpi-csat">—</div><div class="delta" id="kpi-csat-delta"></div></div>
     </div>
 
     <div class="card outcome-card">
       <h2>Outcome</h2>
       <p class="desc" id="desc-outcome">Refund vs. exchange vs. store credit, selected period. Hover a slice for its return value.</p>
-      <div class="chart-wrap" style="height:280px"><canvas id="chart-outcome"></canvas></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chart-outcome"></canvas></div>
     </div>
   </section>
 
@@ -556,18 +609,20 @@
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Filter bar</span><h2>From / To week filter</h2></summary>
     <div class="details-body">
-      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the three KPI tiles, "Outcome", and the "Return detail" table) recalculates for exactly that range.</p>
+      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the KPI tiles, "Outcome", and the "Return detail" table) recalculates for exactly that range.</p>
       <p>Whatever range you pick, it's automatically compared against the immediately preceding period of the same length — 1 week vs. the prior week, 4 weeks vs. the 4 weeks before that. The note under the filter bar spells out exactly which weeks are being compared. "Reset" jumps back to just the most recent week.</p>
+      <p>It also carries through to the "Trends" charts below (returns/value per week, return rate by cohort): the weeks inside your selected range are shown at full color there, everything else dimmed, so you can see where the period you're looking at sits inside the longer trend.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The three KPI tiles</h2></summary>
+    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The KPI tiles</h2></summary>
     <div class="details-body">
       <ul>
         <li><b>Return rate — last matured cohort.</b> The only tile that ignores the From/To filter on purpose. It's the return rate of the most recent "matured" cohort (see "Return rate by purchase cohort" below). Needs the Shopify enrichment data to populate.</li>
         <li><b>Returns.</b> Total returns in the selected period, counted by order (one return = one order, even if it has several line items), with the percent change vs. the prior period underneath. The smaller line below it shows how many distinct products (not SKUs/variants) had at least one return.</li>
         <li><b>Avg days to return.</b> Average days between delivery and the return being submitted, for the selected period. Needs the Shopify "delivered at" data, same as the cohort chart.</li>
+        <li><b>CSAT — return tickets.</b> Average satisfaction score for return-related support tickets in the selected period, weighted by how many surveys were actually scored each week (a week with more responses counts for more than a week with one or two).</li>
       </ul>
     </div>
   </details>
@@ -638,6 +693,16 @@
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // Lightens a palette color for the "not in the selected filter" state of a
+  // trend chart bar, by converting it to rgba with a lower alpha, rather than
+  // using a separate muted hue (keeps the same color identity, just dimmer).
+  function withAlpha(hex, alpha) {
+    var h = String(hex).replace('#', '');
+    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    var r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
   }
 
   function gvizUrl(sheetName) {
@@ -782,9 +847,12 @@
     return chart;
   }
 
-  function lineChart(canvasId, labels, datasets) {
+  function lineChart(canvasId, labels, datasets, opts) {
+    opts = opts || {};
     destroyIfExists(canvasId);
     var canvas = resetChartWrap(canvasId);
+    var yScale = { grid: { color: cssVar('--grid') }, ticks: { color: cssVar('--text-muted') } };
+    if (opts.yMin !== undefined) { yScale.min = opts.yMin; } else { yScale.beginAtZero = true; }
     var chart = new Chart(canvas, {
       type: 'line',
       data: { labels: labels, datasets: datasets },
@@ -793,7 +861,7 @@
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { display: false }, ticks: { color: cssVar('--text-muted') } },
-          y: { grid: { color: cssVar('--grid') }, ticks: { color: cssVar('--text-muted') }, beginAtZero: true },
+          y: yScale,
         },
         elements: { point: { radius: 3, hoverRadius: 5 }, line: { tension: 0.25, borderWidth: 2 } },
       },
@@ -894,6 +962,57 @@
     }
   })();
 
+  // ===================== theme toggle (dark / light) =====================
+
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+
+    function getStored() {
+      try { return localStorage.getItem('returns-dashboard-theme'); } catch (e) { return null; }
+    }
+    function setStored(v) {
+      try { localStorage.setItem('returns-dashboard-theme', v); } catch (e) { /* ignore — just won't persist across visits */ }
+    }
+    function prefersDark() {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    function isDarkNow() {
+      var attr = root.getAttribute('data-theme');
+      if (attr === 'dark') return true;
+      if (attr === 'light') return false;
+      return prefersDark();
+    }
+    function applyIcon() {
+      btn.textContent = isDarkNow() ? '☀️' : '🌙';
+    }
+
+    var stored = getStored();
+    if (stored === 'dark' || stored === 'light') root.setAttribute('data-theme', stored);
+    applyIcon();
+
+    btn.onclick = function () {
+      var next = isDarkNow() ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      setStored(next);
+      applyIcon();
+    };
+  })();
+
+  // ===================== back to top =====================
+
+  (function () {
+    var btn = document.getElementById('back-to-top');
+    if (!btn) return;
+    window.addEventListener('scroll', function () {
+      if (window.scrollY > 400) btn.classList.add('show'); else btn.classList.remove('show');
+    });
+    btn.onclick = function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+  })();
+
   // ===================== main load =====================
 
   Promise.all([
@@ -916,28 +1035,53 @@
     }
     document.getElementById('asof').textContent = 'Loaded ' + new Date().toLocaleString();
 
-    // ---------- Trend charts (rolling, unaffected by the From/To filter) ----------
-    if (Array.isArray(weekly) && weekly.length) {
+    // ---------- Trend charts (rolling, unaffected by the From/To filter —
+    // except that the bars/weeks covered by the current From/To selection
+    // are drawn at full color, and everything outside it dimmed, so you can
+    // see where the selected period sits inside the longer trend) ----------
+    var weeklyHasData = Array.isArray(weekly) && weekly.length;
+    var cohortHasData = Array.isArray(cohort) && cohort.length;
+
+    function renderVolumeValueCharts(currKeys) {
+      if (!weeklyHasData) {
+        ['chart-volume', 'chart-value'].forEach(function (id) { emptyState(id, 'No data yet in "Loop returns (weekly)".'); });
+        return;
+      }
       var w = weekly.slice(-12);
-      barChart('chart-volume', w.map(isoWeekLabel), w.map(function (r) { return toNum(r['Total returns']); }), cssVar('--series-1'));
-      barChart('chart-value', w.map(isoWeekLabel), w.map(function (r) { return toNum(r['Total refund amount']); }), cssVar('--series-2'), {
+      function colorsFor(baseVar) {
+        var base = cssVar(baseVar);
+        return w.map(function (r) {
+          var d = toDate(r['Week start (Monday)']);
+          var selected = !currKeys || (d && currKeys[d.getTime()]);
+          return selected ? base : withAlpha(base, 0.3);
+        });
+      }
+      barChart('chart-volume', w.map(isoWeekLabel), w.map(function (r) { return toNum(r['Total returns']); }), colorsFor('--series-1'));
+      barChart('chart-value', w.map(isoWeekLabel), w.map(function (r) { return toNum(r['Total refund amount']); }), colorsFor('--series-2'), {
         tooltip: { label: function (ctx) { return fmtMoney(ctx.raw); } },
       });
-    } else {
-      ['chart-volume', 'chart-value'].forEach(function (id) { emptyState(id, 'No data yet in "Loop returns (weekly)".'); });
     }
 
-    if (Array.isArray(cohort) && cohort.length) {
+    function renderCohortChart(currKeys) {
+      if (!cohortHasData) {
+        emptyState('chart-cohort', 'No data yet in "Return rate (cohort)" — needs a run with working Shopify credentials.');
+        return;
+      }
       var c = cohort.slice().reverse(); // sheet is newest-first per the script; show oldest -> newest
-      barChart('chart-cohort', c.map(isoWeekLabel), c.map(function (r) { return toNum(r['Return rate (%)']); }),
-        c.map(function (r) { return statusColorFor(r['Cohort status']); }), {
-          tooltip: {
-            label: function (ctx) {
-              var row = c[ctx.dataIndex];
-              return fmtPct(ctx.raw) + ' · ' + row['Cohort status'];
-            },
+      var colors = c.map(function (r) {
+        var base = statusColorFor(r['Cohort status']);
+        var d = toDate(r['Week start (Monday)']);
+        var selected = !currKeys || (d && currKeys[d.getTime()]);
+        return selected ? base : withAlpha(base, 0.3);
+      });
+      barChart('chart-cohort', c.map(isoWeekLabel), c.map(function (r) { return toNum(r['Return rate (%)']); }), colors, {
+        tooltip: {
+          label: function (ctx) {
+            var row = c[ctx.dataIndex];
+            return fmtPct(ctx.raw) + ' · ' + row['Cohort status'];
           },
-        });
+        },
+      });
       var matured = c.filter(function (r) { return String(r['Cohort status']).indexOf('Matured') === 0; });
       var lastMatured = matured[matured.length - 1];
       if (lastMatured) {
@@ -946,16 +1090,19 @@
       } else {
         document.getElementById('kpi-rate-sub').textContent = 'no matured cohort yet';
       }
-    } else {
-      emptyState('chart-cohort', 'No data yet in "Return rate (cohort)" — needs a run with working Shopify credentials.');
     }
+
+    // Initial render (no filter selected yet) — re-rendered with the actual
+    // highlighted weeks once renderPeriod() runs below.
+    renderVolumeValueCharts(null);
+    renderCohortChart(null);
 
     if (Array.isArray(tickets) && tickets.length) {
       var t = tickets.slice(-12);
       lineChart('chart-csat', t.map(isoWeekLabel), [
         { data: t.map(function (r) { return toNum(r['CSAT - Return tickets (avg score)']); }), borderColor: cssVar('--series-1'), backgroundColor: cssVar('--series-1') },
         { data: t.map(function (r) { return toNum(r['CSAT - All tickets (avg score)']); }), borderColor: cssVar('--text-muted'), backgroundColor: cssVar('--text-muted'), borderDash: [4, 3] },
-      ]);
+      ], { yMin: 3 }); // CSAT realistically never drops below 3 on a 1-5 scale — starting the axis there makes week-to-week movement readable
     } else {
       emptyState('chart-csat', 'No data yet in "Return tickets".');
     }
@@ -1153,6 +1300,11 @@
       var currKeys = weekKeySet(range.weeks);
       var prevKeys = weekKeySet(prevWeeks);
 
+      // Re-highlight the "always all-time" trend charts to show which of
+      // their weeks fall inside the currently selected From/To range.
+      renderVolumeValueCharts(currKeys);
+      renderCohortChart(currKeys);
+
       if (range.weeks.length) {
         var firstW = range.weeks[0], lastW = range.weeks[range.weeks.length - 1];
         var note = 'Comparing week' + (n > 1 ? 's ' : ' ') + firstW.isoWeek + (n > 1 ? '–' + lastW.isoWeek : '') + ' (' + n + ' week' + (n > 1 ? 's' : '') + ')';
@@ -1203,6 +1355,25 @@
       document.getElementById('kpi-days').textContent = currDays === null ? '—' : currDays.toFixed(1);
       document.getElementById('kpi-days-delta').innerHTML = deltaHtml(currDays, prevDays, { fmt: function (v) { return v.toFixed(1); } });
 
+      // ---- CSAT (return tickets) KPI, weighted by surveys scored per week ----
+      function csatForKeys(keys) {
+        var weightedSum = 0, weightTotal = 0;
+        (Array.isArray(tickets) ? tickets : []).forEach(function (t) {
+          var d = toDate(t['Week start (Monday)']);
+          if (!d || !keys[d.getTime()]) return;
+          var score = toNum(t['CSAT - Return tickets (avg score)']);
+          var n = toNum(t['CSAT - Return tickets (surveys scored)']) || 0;
+          if (score === null || !n) return;
+          weightedSum += score * n;
+          weightTotal += n;
+        });
+        return weightTotal ? weightedSum / weightTotal : null;
+      }
+      var currCsat = csatForKeys(currKeys);
+      var prevCsat = hasPrev ? csatForKeys(prevKeys) : null;
+      document.getElementById('kpi-csat').textContent = currCsat === null ? '—' : currCsat.toFixed(2);
+      document.getElementById('kpi-csat-delta').innerHTML = deltaHtml(currCsat, prevCsat, { fmt: function (v) { return v.toFixed(2); } });
+
       document.getElementById('desc-outcome').textContent = 'Refund vs. exchange vs. store credit, ' + (n > 1 ? n + ' selected weeks' : 'selected week') + '.';
 
       if (!currRows.length) {
@@ -1239,7 +1410,13 @@
           tooltipLabel: function (ctx) {
             var label = outcomes[ctx.dataIndex].label;
             var value = valueByOutcome[label] || 0;
-            return label + ': ' + ctx.raw + ' return' + (ctx.raw === 1 ? '' : 's') + ' · ' + fmtMoney(value);
+            var text = label + ': ' + ctx.raw + ' return' + (ctx.raw === 1 ? '' : 's');
+            // Outcomes like Exchange/Store credit usually have no refund $
+            // amount on the return record — showing "$0" there reads like a
+            // real figure instead of "not applicable", so it's only appended
+            // when there's an actual value to show.
+            if (value > 0) text += ' · ' + fmtMoney(value);
+            return text;
           },
         });
       } else {
