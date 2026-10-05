@@ -159,20 +159,32 @@
   }
   .section-label:first-of-type { margin-top: 0; }
 
-  .kpis {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
+  .period-row {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
     margin-bottom: 8px;
   }
   @media (max-width: 760px) {
-    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .period-row { flex-direction: column; }
+  }
+  .kpi-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .outcome-card { flex: 0 0 360px; display: flex; flex-direction: column; }
+  @media (max-width: 760px) {
+    .outcome-card { flex: none; }
   }
   .kpi {
     background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 14px 16px;
+    flex: 1;
   }
   .kpi .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
   .kpi .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
@@ -195,7 +207,6 @@
     min-width: 0;
   }
   .card.wide { grid-column: 1 / -1; }
-  .card.compact { max-width: 320px; margin-bottom: 14px; }
   .card h2 {
     font-size: 14px;
     font-weight: 600;
@@ -436,18 +447,24 @@
   </div>
 
   <div class="section-label">Selected period</div>
-  <section class="kpis" id="kpis">
-    <div class="kpi"><div class="label">Return rate — last matured cohort</div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
-    <div class="kpi"><div class="label">Returns</div><div class="value" id="kpi-count">—</div><div class="delta" id="kpi-count-delta"></div></div>
-    <div class="kpi"><div class="label">Return value</div><div class="value" id="kpi-value">—</div><div class="delta" id="kpi-value-delta"></div></div>
-    <div class="kpi"><div class="label">Avg days to return</div><div class="value" id="kpi-days">—</div><div class="delta" id="kpi-days-delta"></div></div>
-  </section>
+  <section class="period-row">
+    <div class="kpi-stack">
+      <div class="kpi"><div class="label">Return rate — last matured cohort</div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
+      <div class="kpi">
+        <div class="label">Returns</div>
+        <div class="value" id="kpi-count">—</div>
+        <div class="delta" id="kpi-count-delta"></div>
+        <div class="sub" id="kpi-count-products"></div>
+      </div>
+      <div class="kpi"><div class="label">Avg days to return</div><div class="value" id="kpi-days">—</div><div class="delta" id="kpi-days-delta"></div></div>
+    </div>
 
-  <div class="card compact">
-    <h2>Outcome</h2>
-    <p class="desc" id="desc-outcome">Refund vs. exchange vs. store credit, selected period.</p>
-    <div class="chart-wrap" style="height:160px"><canvas id="chart-outcome"></canvas></div>
-  </div>
+    <div class="card outcome-card">
+      <h2>Outcome</h2>
+      <p class="desc" id="desc-outcome">Refund vs. exchange vs. store credit, selected period. Hover a slice for its return value.</p>
+      <div class="chart-wrap" style="height:280px"><canvas id="chart-outcome"></canvas></div>
+    </div>
+  </section>
 
   <section class="grid">
     <div class="card wide">
@@ -539,18 +556,17 @@
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Filter bar</span><h2>From / To week filter</h2></summary>
     <div class="details-body">
-      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the four KPI tiles, "Outcome", and the "Return detail" table) recalculates for exactly that range.</p>
+      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the three KPI tiles, "Outcome", and the "Return detail" table) recalculates for exactly that range.</p>
       <p>Whatever range you pick, it's automatically compared against the immediately preceding period of the same length — 1 week vs. the prior week, 4 weeks vs. the 4 weeks before that. The note under the filter bar spells out exactly which weeks are being compared. "Reset" jumps back to just the most recent week.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The four KPI tiles</h2></summary>
+    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The three KPI tiles</h2></summary>
     <div class="details-body">
       <ul>
         <li><b>Return rate — last matured cohort.</b> The only tile that ignores the From/To filter on purpose. It's the return rate of the most recent "matured" cohort (see "Return rate by purchase cohort" below). Needs the Shopify enrichment data to populate.</li>
-        <li><b>Returns.</b> Count of returns submitted in the selected period, with the percent change vs. the prior period underneath.</li>
-        <li><b>Return value.</b> Total refund amount for the selected period, same comparison logic.</li>
+        <li><b>Returns.</b> Total returns in the selected period, counted by order (one return = one order, even if it has several line items), with the percent change vs. the prior period underneath. The smaller line below it shows how many distinct products (not SKUs/variants) had at least one return.</li>
         <li><b>Avg days to return.</b> Average days between delivery and the return being submitted, for the selected period. Needs the Shopify "delivered at" data, same as the cohort chart.</li>
       </ul>
     </div>
@@ -559,7 +575,7 @@
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Outcome</h2></summary>
     <div class="details-body">
-      <p>What actually happened to the returns in the selected period: refunded, exchanged, store credit, etc. (A breakdown by return <i>reason</i> lives in the Products panel below instead, where it's more useful grouped by product.)</p>
+      <p>What actually happened to the returns in the selected period: refunded, exchanged, store credit, etc. Hover a slice to see its return value (total refund $) alongside the count — that's instead of its own KPI tile, to keep it attached to the outcome it belongs to. (A breakdown by return <i>reason</i> lives in the Products panel below instead, where it's more useful grouped by product.)</p>
     </div>
   </details>
 
@@ -786,7 +802,8 @@
     return chart;
   }
 
-  function pieChart(canvasId, labels, data, colors) {
+  function pieChart(canvasId, labels, data, colors, opts) {
+    opts = opts || {};
     destroyIfExists(canvasId);
     var canvas = resetChartWrap(canvasId);
     var chart = new Chart(canvas, {
@@ -796,7 +813,11 @@
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: true, position: 'right', labels: { color: cssVar('--text-secondary'), boxWidth: 10, padding: 10, font: { size: 11 } } },
-          tooltip: { callbacks: { label: function (ctx) { return ctx.label + ': ' + ctx.raw; } } },
+          tooltip: {
+            callbacks: {
+              label: opts.tooltipLabel || function (ctx) { return ctx.label + ': ' + ctx.raw; },
+            },
+          },
         },
       },
     });
@@ -1155,13 +1176,9 @@
       }
       var currReturns = sumWeekly('Total returns', currKeys);
       var prevReturns = hasPrev ? sumWeekly('Total returns', prevKeys) : null;
-      var currValue = sumWeekly('Total refund amount', currKeys);
-      var prevValue = hasPrev ? sumWeekly('Total refund amount', prevKeys) : null;
 
       document.getElementById('kpi-count').textContent = currReturns === null ? '—' : currReturns;
       document.getElementById('kpi-count-delta').innerHTML = deltaHtml(currReturns, prevReturns, { fmt: function (v) { return v; } });
-      document.getElementById('kpi-value').textContent = currValue === null ? '—' : fmtMoney(currValue);
-      document.getElementById('kpi-value-delta').innerHTML = deltaHtml(currValue, prevValue, { fmt: fmtMoney });
 
       // ---- detail rows scoped to current / previous period ----
       var detailRows = Array.isArray(detail) ? detail : [];
@@ -1171,6 +1188,15 @@
       }
       var currRows = detailRows.filter(function (r) { return inRange(r, currKeys); });
       var prevRows = hasPrev ? detailRows.filter(function (r) { return inRange(r, prevKeys); }) : [];
+
+      // "Returns" KPI sub-line: total return LINE ITEMS by order (currReturns,
+      // above, is distinct Return IDs — i.e. by order) plus how many distinct
+      // products (not variants/SKUs) had at least one return in this period.
+      var uniqueProductsCount = Object.keys(
+        currRows.reduce(function (acc, r) { acc[productOf(r['Product title'])] = true; return acc; }, {})
+      ).length;
+      document.getElementById('kpi-count-products').textContent =
+        uniqueProductsCount + ' unique product' + (uniqueProductsCount === 1 ? '' : 's') + ' returned';
 
       var currDays = avg(currRows.map(function (r) { return toNum(r['Days to return']); }));
       var prevDays = hasPrev ? avg(prevRows.map(function (r) { return toNum(r['Days to return']); })) : null;
@@ -1200,8 +1226,22 @@
 
       var outcomes = tally(currRows, 'Outcome');
       if (outcomes.length) {
+        // Return value (sum of Refund amount) per outcome — shown on hover,
+        // per Juli's request to surface it there instead of its own KPI tile.
+        var valueByOutcome = {};
+        currRows.forEach(function (r) {
+          var label = r['Outcome'] ? String(r['Outcome']) : null;
+          if (!label) return;
+          valueByOutcome[label] = (valueByOutcome[label] || 0) + (toNum(r['Refund amount']) || 0);
+        });
         var pieColors = [cssVar('--series-1'), cssVar('--series-2'), cssVar('--series-3'), cssVar('--series-4'), cssVar('--series-5')];
-        pieChart('chart-outcome', outcomes.map(function (r) { return r.label; }), outcomes.map(function (r) { return r.count; }), outcomes.map(function (r, i) { return pieColors[i % pieColors.length]; }));
+        pieChart('chart-outcome', outcomes.map(function (r) { return r.label; }), outcomes.map(function (r) { return r.count; }), outcomes.map(function (r, i) { return pieColors[i % pieColors.length]; }), {
+          tooltipLabel: function (ctx) {
+            var label = outcomes[ctx.dataIndex].label;
+            var value = valueByOutcome[label] || 0;
+            return label + ': ' + ctx.raw + ' return' + (ctx.raw === 1 ? '' : 's') + ' · ' + fmtMoney(value);
+          },
+        });
       } else {
         emptyState('chart-outcome', 'No outcome data in the selected period.');
       }
