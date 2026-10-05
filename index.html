@@ -443,7 +443,7 @@
             </div>
           </div>
           <div class="chart-wrap" style="height:220px"><canvas id="chart-product-reasons"></canvas></div>
-          <p class="table-note" style="margin:10px 0 6px">Recent customer comments for this product (most recent first, capped at 50):</p>
+          <p class="table-note" id="product-comments-label" style="margin:10px 0 6px">Click a reason bar above to see only the comments for that reason. All comments for this product, most recent first, capped at 50:</p>
           <div class="comments-list" id="product-comments"></div>
         </div>
       </div>
@@ -534,6 +534,7 @@
     <span class="tag">All-time, not filtered</span>
     <h2>Products panel</h2>
     <p>This is the one built for the Product team specifically. On the left is every product (variants like different colors or sizes are merged into one product line — "Ekster Cardholder Pro, Jet Black" and "Ekster Cardholder Pro, Olive" both count under "Ekster Cardholder Pro"), sorted by how many times it's ever been returned. Click a product to see, on the right: its all-time return count, its average days to return, a full breakdown of every return reason it has ever had (not just the top 3), and its customers' actual comments, most recent first.</p>
+    <p>Click a bar in the reasons chart to narrow the comments list to just that reason (the bar turns orange while it's selected) — click it again, or use "clear filter", to go back to every comment for the product.</p>
     <p>This panel deliberately ignores the From/To filter above it, because the point is to see a product's real pattern over its whole history, not get thrown off by one unusually bad or good week. If you want a specific week's or month's detail instead, use the "Return detail" table underneath it.</p>
   </div>
 
@@ -709,6 +710,12 @@
       options: Object.assign({
         responsive: true, maintainAspectRatio: false,
         indexAxis: opts.horizontal ? 'y' : 'x',
+        onClick: opts.onBarClick ? function (evt, elements) {
+          if (elements && elements.length) opts.onBarClick(elements[0].index);
+        } : undefined,
+        onHover: opts.onBarClick ? function (evt, elements) {
+          evt.native.target.style.cursor = (elements && elements.length) ? 'pointer' : 'default';
+        } : undefined,
         plugins: { legend: { display: false }, tooltip: { callbacks: opts.tooltip || {} } },
         scales: {
           x: { grid: { display: opts.horizontal }, ticks: { color: cssVar('--text-muted') } },
@@ -886,6 +893,7 @@
             text: String(comment).trim(),
             week: r['ISO week'] != null ? 'W' + r['ISO week'] : '',
             order: r['Order name'] || '',
+            reason: reason,
             sortKey: toDate(r['Week start (Monday)']) || new Date(0),
           });
         }
@@ -907,6 +915,7 @@
       }).sort(function (a, b) { return b.count - a.count; });
 
       var selectedProduct = globalProducts.length ? globalProducts[0].name : null;
+      var selectedReason = null;
 
       function renderProductList(filterText) {
         var rows = globalProducts;
@@ -933,8 +942,60 @@
         });
       }
 
+      function renderReasonsChart(p) {
+        var topReasons = p.reasons.slice(0, 15);
+        if (topReasons.length) {
+          var colors = topReasons.map(function (r) { return r.label === selectedReason ? cssVar('--series-2') : cssVar('--series-1'); });
+          barChart('chart-product-reasons', topReasons.map(function (r) { return r.label; }), topReasons.map(function (r) { return r.count; }), colors, {
+            horizontal: true,
+            tooltip: { label: function (ctx) { return topReasons[ctx.dataIndex].count + ' return' + (topReasons[ctx.dataIndex].count === 1 ? '' : 's') + ' — click to filter comments by this reason'; } },
+            onBarClick: function (idx) {
+              var clicked = topReasons[idx].label;
+              selectedReason = (selectedReason === clicked) ? null : clicked;
+              // Deferred: destroying/recreating the chart synchronously inside
+              // Chart.js's own click-event dispatch (to recolor the selected bar)
+              // breaks its internal event handling; a tick later is safe.
+              setTimeout(function () {
+                renderReasonsChart(p);
+                renderProductComments(p, selectedReason);
+              }, 0);
+            },
+          });
+        } else {
+          emptyState('chart-product-reasons', 'No return reason data for this product.');
+        }
+      }
+
+      function renderProductComments(p, reasonFilter) {
+        var labelEl = document.getElementById('product-comments-label');
+        var commentsEl = document.getElementById('product-comments');
+        var comments = p.comments;
+        if (reasonFilter) {
+          comments = comments.filter(function (c) { return c.reason === reasonFilter; });
+          labelEl.innerHTML = 'Comments for reason "<b>' + escapeHtml(reasonFilter) + '</b>" (' + comments.length + ' of ' + p.comments.length + ' total) — ' +
+            '<span id="clear-reason-filter" style="cursor:pointer;color:var(--series-1);text-decoration:underline">clear filter</span>';
+          document.getElementById('clear-reason-filter').onclick = function () {
+            selectedReason = null;
+            setTimeout(function () {
+              renderReasonsChart(p);
+              renderProductComments(p, null);
+            }, 0);
+          };
+        } else {
+          labelEl.textContent = 'Click a reason bar above to see only the comments for that reason. All comments for this product, most recent first, capped at 50:';
+        }
+        if (comments.length) {
+          commentsEl.innerHTML = comments.slice(0, 50).map(function (c) {
+            return '<div class="comment-row"><div class="meta">' + escapeHtml(c.week) + (c.order ? ' · ' + escapeHtml(c.order) : '') + ' · ' + escapeHtml(c.reason) + '</div>' + escapeHtml(c.text) + '</div>';
+          }).join('');
+        } else {
+          commentsEl.innerHTML = '<div class="comment-row">No customer comments recorded ' + (reasonFilter ? 'for this reason' : 'for this product') + ' yet' + (reasonFilter ? '.' : ' — needs the "Return comment" column backfilled/running.') + '</div>';
+        }
+      }
+
       function renderProductDetail(name) {
         var p = globalProducts.filter(function (x) { return x.name === name; })[0];
+        selectedReason = null;
         if (!p) {
           document.getElementById('product-detail-name').textContent = '—';
           document.getElementById('product-detail-count').textContent = '—';
@@ -947,24 +1008,8 @@
         document.getElementById('product-detail-count').textContent = p.count;
         document.getElementById('product-detail-days').textContent = p.avgDays === null ? '—' : p.avgDays.toFixed(1);
 
-        var topReasons = p.reasons.slice(0, 15);
-        if (topReasons.length) {
-          barChart('chart-product-reasons', topReasons.map(function (r) { return r.label; }), topReasons.map(function (r) { return r.count; }), cssVar('--series-1'), {
-            horizontal: true,
-            tooltip: { label: function (ctx) { return topReasons[ctx.dataIndex].count + ' return' + (topReasons[ctx.dataIndex].count === 1 ? '' : 's'); } },
-          });
-        } else {
-          emptyState('chart-product-reasons', 'No return reason data for this product.');
-        }
-
-        var commentsEl = document.getElementById('product-comments');
-        if (p.comments.length) {
-          commentsEl.innerHTML = p.comments.slice(0, 50).map(function (c) {
-            return '<div class="comment-row"><div class="meta">' + escapeHtml(c.week) + (c.order ? ' · ' + escapeHtml(c.order) : '') + '</div>' + escapeHtml(c.text) + '</div>';
-          }).join('');
-        } else {
-          commentsEl.innerHTML = '<div class="comment-row">No customer comments recorded for this product yet — needs the "Return comment" column backfilled/running.</div>';
-        }
+        renderReasonsChart(p);
+        renderProductComments(p, null);
       }
 
       renderProductList('');
