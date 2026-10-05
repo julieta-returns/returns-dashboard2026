@@ -556,18 +556,6 @@
   <div class="section-label">Selected period — other lenses (CEO / Operations / Finance)</div>
   <section class="grid">
     <div class="card wide">
-      <h2>Repeat-return customers</h2>
-      <p class="desc" id="desc-repeat-customers">Customers with more than one return in the selected period — a pattern here is either a sign of expectations not matching the product, or a segment that costs more to serve than it looks like from order volume alone.</p>
-      <div class="table-scroll">
-        <table class="data-table" id="table-repeat-customers">
-          <thead><tr><th>Customer</th><th style="text-align:right">Returns</th><th style="text-align:right">Orders involved</th><th style="text-align:right">Refunded</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="table-note" id="repeat-customers-note"></div>
-    </div>
-
-    <div class="card wide">
       <h2>Returns by carrier</h2>
       <p class="desc" id="desc-carrier">Return COUNT by the carrier that delivered the order (from Shopify's tracking info) — not a rate, since this doesn't yet divide by how many orders each carrier shipped overall. Useful for spotting whether one carrier's deliveries are disproportionately showing up here, as a starting point for a conversation with that carrier.</p>
       <div class="chart-wrap"><canvas id="chart-carrier"></canvas></div>
@@ -626,6 +614,21 @@
       <div class="legend-note" id="outcome-trend-legend"></div>
     </div>
   </section>
+
+  <div class="section-label">New products (since launch — not affected by the filter above)</div>
+  <section class="grid">
+    <div class="card wide">
+      <h2>New products, launched in the last <span id="new-products-window">8</span> weeks</h2>
+      <p class="desc" id="desc-new-products">Return activity since each product's own launch date (Shopify's "published to online store" date), not since the From/To filter above — a product launched 3 weeks ago is judged on its 3 weeks, not on whatever period happens to be selected. A high count early is worth a look before it's buried in the all-time totals above.</p>
+      <div class="table-scroll">
+        <table class="data-table" id="table-new-products">
+          <thead><tr><th>Product</th><th>Launched</th><th style="text-align:right">Weeks live</th><th style="text-align:right">Returns since launch</th><th>Top reason</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-note" id="new-products-note"></div>
+    </div>
+  </section>
 </div>
 
 <div id="view-guide" class="guide" style="display:none">
@@ -637,14 +640,14 @@
   <details class="card" open>
     <summary><span class="chev">▶</span><span class="tag">Overview</span><h2>What this dashboard is</h2></summary>
     <div class="details-body">
-      <p>This page reads live data straight from the "CS Dashboard 2026" Google Sheet every time it's opened — nothing is cached, so reloading shows whatever is in the sheet right now. There are two kinds of sections: "Selected period" (the KPI tiles, Outcome, Products panel, Return detail, repeat customers, carrier chart and reserve estimate), which all respond to the From/To filter near the top, and "Trends", which always shows the full history regardless of that filter.</p>
+      <p>This page reads live data straight from the "CS Dashboard 2026" Google Sheet every time it's opened — nothing is cached, so reloading shows whatever is in the sheet right now. There are two kinds of sections: "Selected period" (the KPI tiles, Outcome, Products panel, Return detail, carrier chart and reserve estimate), which all respond to the From/To filter near the top, and "Trends", which always shows the full history regardless of that filter.</p>
     </div>
   </details>
 
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Filter bar</span><h2>From / To week filter</h2></summary>
     <div class="details-body">
-      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the KPI tiles, "Outcome", the Products panel, the "Return detail" table, repeat customers, returns by carrier, and the reserve estimate) recalculates for exactly that range.</p>
+      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the KPI tiles, "Outcome", the Products panel, the "Return detail" table, returns by carrier, and the reserve estimate) recalculates for exactly that range.</p>
       <p>Whatever range you pick, it's automatically compared against the immediately preceding period of the same length — 1 week vs. the prior week, 4 weeks vs. the 4 weeks before that. The note under the filter bar spells out exactly which weeks are being compared. "Reset" jumps back to just the most recent week.</p>
       <p>It also carries through to the "Trends" charts below (returns/value per week, return rate by cohort): the weeks inside your selected range are shown at full color there, everything else dimmed, so you can see where the period you're looking at sits inside the longer trend.</p>
     </div>
@@ -684,13 +687,6 @@
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Return detail table</h2></summary>
     <div class="details-body">
       <p>One row per returned line item, limited to the From/To period selected above. Search filters by product, SKU, reason, or comment text. Capped at 500 rows at a time — narrow the period or the search to see more.</p>
-    </div>
-  </details>
-
-  <details class="card">
-    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Repeat-return customers</h2></summary>
-    <div class="details-body">
-      <p>Every customer with more than one return in the selected period, by email, ranked by return count (counting distinct Loop returns, not line items — a single return with 3 products in it is still 1 return here). A name showing up here repeatedly across different periods is worth a look: it can mean a product keeps not matching expectations for that person, or it's a customer who, however good their orders look on paper, costs more to serve than they generate.</p>
     </div>
   </details>
 
@@ -742,7 +738,15 @@
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Data</span><h2>Where the numbers come from</h2></summary>
     <div class="details-body">
-      <p>Four tabs in the "CS Dashboard 2026" sheet: "Loop returns" (one row per returned line item — the rawest data), "Loop returns (weekly)" (the same data pre-aggregated per week), "Return rate (cohort)", and "Return tickets". A weekly Google Apps Script keeps those updated from Gorgias, Loop Returns, and Shopify. If a section looks empty, it's almost always that the script hasn't had valid Shopify credentials yet, or hasn't run for that week yet — not a bug in this page.</p>
+      <p>Five tabs in the "CS Dashboard 2026" sheet: "Loop returns" (one row per returned line item — the rawest data), "Loop returns (weekly)" (the same data pre-aggregated per week), "Return rate (cohort)", "Return tickets", and "Product launch dates". A weekly Google Apps Script keeps those updated from Gorgias, Loop Returns, and Shopify. If a section looks empty, it's almost always that the script hasn't had valid Shopify credentials yet, or hasn't run for that week yet — not a bug in this page.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary><span class="chev">▶</span><span class="tag">New products</span><h2>New products, launched in the last N weeks</h2></summary>
+    <div class="details-body">
+      <p>Products Shopify says were published to the online store in the last 8 weeks (editable in the dashboard's source if that window ever needs to change), with how many returns they've had since THEIR OWN launch date — not since the From/To filter above. A product that's only been live 2 weeks is judged on those 2 weeks, so a bad early signal doesn't have to wait to show up until it's buried in a bigger all-time number.</p>
+      <p>"Launch date" is Shopify's publishedAt (when it actually went live on the storefront), falling back to createdAt only for the rare product that's never been published. Needs "Product launch dates" populated — run syncProductLaunchDates once in Apps Script for an immediate first fill; it also runs automatically every week after that.</p>
     </div>
   </details>
 </div>
@@ -1000,6 +1004,11 @@
     return v instanceof Date ? v : (v ? new Date(v) : null);
   }
 
+  function fmtDate(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) return '—';
+    return (d.getMonth() + 1) + '/' + d.getDate() + '/' + d.getFullYear();
+  }
+
   function fmtWeekOption(row) {
     var d = toDate(row['Week start (Monday)']);
     var dateStr = d ? (d.getMonth() + 1) + '/' + d.getDate() : '?';
@@ -1110,8 +1119,9 @@
     fetchTab('Return rate (cohort)').catch(function (e) { return { err: e }; }),
     fetchTab('Loop returns').catch(function (e) { return { err: e }; }),
     fetchTab('Return tickets').catch(function (e) { return { err: e }; }),
+    fetchTab('Product launch dates').catch(function (e) { return { err: e }; }),
   ]).then(function (results) {
-    var weekly = results[0], cohort = results[1], detail = results[2], tickets = results[3];
+    var weekly = results[0], cohort = results[1], detail = results[2], tickets = results[3], launchDates = results[4];
 
     var anyOk = [weekly, cohort, detail, tickets].some(function (r) { return Array.isArray(r); });
     if (!anyOk) {
@@ -1257,6 +1267,62 @@
       document.getElementById('outcome-trend-legend').innerHTML = allOutcomes.map(function (o, i) {
         return '<span><span class="dot" style="background:' + colors[i % colors.length] + '"></span>' + escapeHtml(o) + '</span>';
       }).join('');
+    })();
+
+    // ---------- New products, since their own launch date (not period-scoped —
+    // anchored to each product's publishedAt, from "Product launch dates",
+    // synced by syncProductLaunchDates_ in the script) ----------
+    (function renderNewProducts() {
+      var NEW_PRODUCT_WINDOW_WEEKS = 8;
+      document.getElementById('new-products-window').textContent = NEW_PRODUCT_WINDOW_WEEKS;
+      var tbody = document.querySelector('#table-new-products tbody');
+      var launchRows = Array.isArray(launchDates) ? launchDates : [];
+
+      if (!launchRows.length) {
+        tbody.innerHTML = '';
+        document.getElementById('new-products-note').textContent =
+          'No data yet in "Product launch dates" — run syncProductLaunchDates once in Apps Script to fill it (it also runs automatically every week going forward).';
+        return;
+      }
+
+      var now = new Date();
+      var windowMs = NEW_PRODUCT_WINDOW_WEEKS * 7 * 86400000;
+      var recent = launchRows.map(function (r) {
+        var launch = toDate(r['Launch date']);
+        return { name: r['Product title'], launch: launch, status: r['Status'] };
+      }).filter(function (p) { return p.launch && (now - p.launch) >= 0 && (now - p.launch) <= windowMs; })
+        .sort(function (a, b) { return b.launch - a.launch; }); // newest launch first
+
+      if (!recent.length) {
+        tbody.innerHTML = '';
+        document.getElementById('new-products-note').textContent = 'No products launched in the last ' + NEW_PRODUCT_WINDOW_WEEKS + ' weeks.';
+        return;
+      }
+
+      var rows = Array.isArray(detail) ? detail : [];
+      var result = recent.map(function (p) {
+        var since = rows.filter(function (r) {
+          if (productOf(r['Product title']) !== p.name) return false;
+          var d = toDate(r['Week start (Monday)']);
+          return d && d >= p.launch;
+        });
+        var reasonCounts = {};
+        since.forEach(function (r) {
+          var reason = r['Return reason'] || r['Parent return reason'] || '(no reason given)';
+          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+        });
+        var topReason = Object.keys(reasonCounts).sort(function (a, b) { return reasonCounts[b] - reasonCounts[a]; })[0] || '—';
+        var weeksLive = Math.max(0, Math.floor((now - p.launch) / (7 * 86400000)));
+        return { name: p.name, launch: p.launch, weeksLive: weeksLive, count: since.length, topReason: topReason };
+      });
+
+      tbody.innerHTML = result.map(function (r) {
+        return '<tr><td>' + escapeHtml(r.name) + '</td><td>' + fmtDate(r.launch) + '</td>' +
+          '<td style="text-align:right">' + r.weeksLive + '</td><td style="text-align:right">' + r.count + '</td>' +
+          '<td>' + escapeHtml(r.topReason) + '</td></tr>';
+      }).join('');
+      document.getElementById('new-products-note').textContent =
+        result.length + ' product' + (result.length === 1 ? '' : 's') + ' launched in the last ' + NEW_PRODUCT_WINDOW_WEEKS + ' weeks. "Returns since launch" counts every return so far, regardless of the From/To filter above.';
     })();
 
     // ---------- Products panel (now scoped to the From/To filter, like the
@@ -1591,39 +1657,6 @@
 
       document.getElementById('desc-outcome').textContent = 'Refund vs. exchange vs. store credit, ' + (n > 1 ? n + ' selected weeks' : 'selected week') + '.';
       document.getElementById('desc-products').textContent = 'Pick a product on the left (grouped by product, not variant — color/size variants are combined) to see every return reason it had in ' + (n > 1 ? 'the ' + n + ' selected weeks' : 'the selected week') + ', plus its own customer comments.';
-
-      // ---- Repeat-return customers (selected period) ----
-      (function renderRepeatCustomers() {
-        var tbody = document.querySelector('#table-repeat-customers tbody');
-        var byCustomer = {}; // email -> { returnIds: {}, orders: {}, refund }
-        currRows.forEach(function (r) {
-          var email = r['Customer email'];
-          if (!email) return;
-          if (!byCustomer[email]) byCustomer[email] = { returnIds: {}, orders: {}, refund: 0 };
-          var c = byCustomer[email];
-          // Return ID, not line item — a 3-product single return is still 1
-          // return, same grain as the "Returns" KPI tile above.
-          if (r['Return ID'] != null) c.returnIds[r['Return ID']] = true;
-          if (r['Order name']) c.orders[r['Order name']] = true;
-          c.refund += toNum(r['Refund amount']) || 0;
-        });
-        var repeat = Object.keys(byCustomer).map(function (email) {
-          var c = byCustomer[email];
-          return { email: email, returns: Object.keys(c.returnIds).length, orders: Object.keys(c.orders).length, refund: c.refund };
-        }).filter(function (c) { return c.returns > 1; })
-          .sort(function (a, b) { return b.returns - a.returns; })
-          .slice(0, 15);
-
-        if (!repeat.length) {
-          tbody.innerHTML = '';
-          document.getElementById('repeat-customers-note').textContent = 'No customer had more than one return in the selected period.';
-          return;
-        }
-        tbody.innerHTML = repeat.map(function (c) {
-          return '<tr><td>' + escapeHtml(c.email) + '</td><td style="text-align:right">' + c.returns + '</td><td style="text-align:right">' + c.orders + '</td><td style="text-align:right">' + fmtMoney(c.refund) + '</td></tr>';
-        }).join('');
-        document.getElementById('repeat-customers-note').textContent = 'Top ' + repeat.length + ' by return count, selected period. Needs "Customer email" populated by the weekly script.';
-      })();
 
       // ---- Returns by carrier (selected period) ----
       (function renderCarrierChart() {
