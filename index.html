@@ -278,6 +278,105 @@
     color: var(--text-muted);
     font-size: 12px;
   }
+
+  .tabnav {
+    display: flex;
+    gap: 6px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .tabnav button {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 4px;
+    margin-right: 14px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tabnav button.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--series-1);
+  }
+  .tabnav button:hover { color: var(--text-primary); }
+
+  .guide h2 { font-size: 15px; margin: 0 0 4px; }
+  .guide h3 { font-size: 13px; margin: 0 0 4px; }
+  .guide p { font-size: 13px; color: var(--text-secondary); margin: 0 0 10px; line-height: 1.5; }
+  .guide ul { margin: 0 0 10px; padding-left: 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  .guide .card { margin-bottom: 14px; }
+  .guide .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin-bottom: 8px;
+  }
+
+  .product-split {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .product-list-col {
+    width: 280px;
+    flex: 0 0 280px;
+  }
+  .product-detail-col {
+    flex: 1;
+    min-width: 0;
+  }
+  @media (max-width: 760px) {
+    .product-split { flex-direction: column; }
+    .product-list-col { width: 100%; flex: none; }
+  }
+  .product-list {
+    max-height: 480px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .product-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--grid);
+  }
+  .product-row:last-child { border-bottom: none; }
+  .product-row:hover { background: var(--page-plane); }
+  .product-row.active { background: var(--page-plane); border-left: 3px solid var(--series-1); padding-left: 7px; }
+  .product-row .count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .product-detail-header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .product-detail-header h3 { font-size: 15px; margin: 0; }
+  .product-detail-stats { display: flex; gap: 18px; font-size: 12px; color: var(--text-secondary); }
+  .product-detail-stats b { color: var(--text-primary); font-size: 14px; display: block; }
+  .comments-list {
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .comment-row {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--grid);
+    color: var(--text-secondary);
+  }
+  .comment-row:last-child { border-bottom: none; }
+  .comment-row .meta { color: var(--text-muted); font-size: 11px; margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -290,7 +389,13 @@
 
 <div id="banner"></div>
 
+<nav class="tabnav">
+  <button type="button" id="tab-btn-dashboard" class="active">Dashboard</button>
+  <button type="button" id="tab-btn-guide">Guide: how to read this</button>
+</nav>
+
 <main>
+<div id="view-dashboard">
   <div class="filterbar">
     <label for="from-week">From</label>
     <select id="from-week"></select>
@@ -322,25 +427,31 @@
     </div>
 
     <div class="card wide">
-      <h2>Days to return, by product</h2>
-      <p class="desc">Average days between delivery and return submission, grouped by product (not variant) — top 10 products by return count in the selected period. Bar height = average days; hover for the count it's based on.</p>
-      <div class="chart-wrap"><canvas id="chart-days-product"></canvas></div>
-    </div>
-
-    <div class="card wide">
-      <h2>Return reasons, by product</h2>
-      <p class="desc">Products ranked by return count in the selected period, with their most common return reasons.</p>
-      <div class="table-scroll">
-        <table class="data-table" id="table-reasons-product">
-          <thead><tr><th>Product</th><th style="text-align:right">Returns</th><th style="text-align:right">Avg days to return</th><th>Top reasons</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <h2>Products — return reasons (all-time, not affected by the filter above)</h2>
+      <p class="desc">Pick a product on the left (grouped by product, not variant — color/size variants are combined) to see every return reason it has ever had, plus its own customer comments. This view always looks at the full history, so it's unaffected by the From/To filter above — use it to spot a product's real, overall problem rather than one noisy week.</p>
+      <div class="product-split">
+        <div class="product-list-col">
+          <input type="text" class="search-input" id="product-search" placeholder="Search product…">
+          <div class="product-list" id="product-list"></div>
+        </div>
+        <div class="product-detail-col">
+          <div class="product-detail-header">
+            <h3 id="product-detail-name">—</h3>
+            <div class="product-detail-stats">
+              <div><b id="product-detail-count">—</b>returns, all-time</div>
+              <div><b id="product-detail-days">—</b>avg days to return</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-product-reasons"></canvas></div>
+          <p class="table-note" style="margin:10px 0 6px">Recent customer comments for this product (most recent first, capped at 50):</p>
+          <div class="comments-list" id="product-comments"></div>
+        </div>
       </div>
     </div>
 
     <div class="card wide">
-      <h2>Return detail (for Product)</h2>
-      <p class="desc">Every return line item in the selected period, with the customer's own comment. Search filters product, SKU, reason and comment text.</p>
+      <h2>Return detail (selected period)</h2>
+      <p class="desc">Every return line item in the From/To period selected above, with the customer's own comment. Search filters product, SKU, reason and comment text. For an all-time view of one product's reasons, use the "Products" panel above instead.</p>
       <input type="text" class="search-input" id="detail-search" placeholder="Search product, SKU, reason, comment…">
       <div class="table-scroll">
         <table class="data-table" id="table-detail">
@@ -386,6 +497,76 @@
       </div>
     </div>
   </section>
+</div>
+
+<div id="view-guide" class="guide" style="display:none">
+  <div class="card">
+    <span class="tag">Overview</span>
+    <h2>What this dashboard is</h2>
+    <p>This page reads live data straight from the "CS Dashboard 2026" Google Sheet every time it's opened. Nothing is cached in the page itself, so if the sheet changes, reloading the page shows the new numbers. There are two kinds of sections: "Selected period", which responds to the From/To filter near the top, and "Trends" / the "Products" panel, which always show the full history regardless of that filter.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">Filter bar</span>
+    <h2>From / To week filter</h2>
+    <p>Pick a From week and a To week to define the period you want to look at — it can be a single week or a longer stretch. Everything under "Selected period" (the four KPI tiles, "Top return reasons", "Outcome", and the "Return detail" table) recalculates for exactly that range.</p>
+    <p>Whatever range you pick, the dashboard automatically compares it against the immediately preceding period of the same length. Select 1 week and it compares against the prior week; select 4 weeks and it compares against the 4 weeks before that. The note under the filter bar spells out exactly which weeks are being compared. "Reset" jumps back to just the most recent week.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">Selected period</span>
+    <h2>The four KPI tiles</h2>
+    <ul>
+      <li><b>Return rate — last matured cohort.</b> The only tile that ignores the From/To filter on purpose. It shows the return rate of the most recent "matured" cohort (a group of orders delivered in the same week, once enough time has passed that we trust the number — see "Return rate by purchase cohort" below). It needs the Shopify enrichment data to populate.</li>
+      <li><b>Returns.</b> Count of returns submitted in the selected period, with the percent change vs. the prior period of equal length underneath.</li>
+      <li><b>Return value.</b> Total refund amount for the selected period, same comparison logic.</li>
+      <li><b>Avg days to return.</b> Average number of days between a customer receiving their order and submitting the return, for the selected period. Needs the Shopify "delivered at" data to calculate, same as the cohort chart.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <span class="tag">Selected period</span>
+    <h2>Top return reasons / Outcome</h2>
+    <p><b>Top return reasons</b> groups every return in the selected period by its parent reason (e.g. "Didn't fit", "Changed my mind", "Defective") and shows the most common ones. <b>Outcome</b> shows what actually happened to those returns — refunded, exchanged, store credit, etc. Both update with the From/To filter.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">All-time, not filtered</span>
+    <h2>Products panel</h2>
+    <p>This is the one built for the Product team specifically. On the left is every product (variants like different colors or sizes are merged into one product line — "Ekster Cardholder Pro, Jet Black" and "Ekster Cardholder Pro, Olive" both count under "Ekster Cardholder Pro"), sorted by how many times it's ever been returned. Click a product to see, on the right: its all-time return count, its average days to return, a full breakdown of every return reason it has ever had (not just the top 3), and its customers' actual comments, most recent first.</p>
+    <p>This panel deliberately ignores the From/To filter above it, because the point is to see a product's real pattern over its whole history, not get thrown off by one unusually bad or good week. If you want a specific week's or month's detail instead, use the "Return detail" table underneath it.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">Selected period</span>
+    <h2>Return detail table</h2>
+    <p>One row per returned line item, limited to the From/To period selected above. Use the search box to filter by product, SKU, reason, or comment text. Capped at 500 rows at a time for speed — narrow the period or the search if you need to see more than that.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">Trends — always all-time</span>
+    <h2>Return rate by purchase cohort</h2>
+    <p>Not the same thing as "returns processed that week." This groups orders by the week they were <i>delivered</i>, then asks: of everyone who received their order that week, what percent eventually returned it? A cohort stays "Provisional" (shown in gray) until Ekster's full return window (100 days) has passed for every order in it — until then the rate can still go up as more returns come in. Once the window has closed it becomes "Matured" (shown in blue) and the number is final. Needs the Shopify enrichment data to calculate at all.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">Trends — always all-time</span>
+    <h2>Returns per week / Return value per week</h2>
+    <p>Simple weekly counts and totals for the last 12 weeks, straight from the "Loop returns (weekly)" tab. These are about when a return was <i>submitted</i>, not when the original order was delivered — that distinction is what separates this from the cohort chart above.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">Trends — always all-time</span>
+    <h2>CSAT — return tickets vs. all tickets</h2>
+    <p>Average customer satisfaction survey score by week, comparing tickets that were about a return against the overall average across all support tickets. Useful for spotting whether returns are dragging satisfaction down relative to everything else.</p>
+  </div>
+
+  <div class="card">
+    <span class="tag">Data</span>
+    <h2>Where the numbers come from</h2>
+    <p>Everything on this page is read directly from four tabs in the "CS Dashboard 2026" sheet: "Loop returns" (one row per returned line item — the rawest data), "Loop returns (weekly)" (that same data pre-aggregated per week), "Return rate (cohort)", and "Return tickets". A weekly Google Apps Script keeps those tabs updated from Gorgias, Loop Returns, and Shopify. If a section looks empty, it almost always means that script hasn't had valid Shopify credentials yet, or hasn't run for that week — not a bug in this page.</p>
+  </div>
+</div>
 </main>
 
 <footer>
@@ -597,6 +778,24 @@
     return arrow + ' ' + sign + pct.toFixed(0) + '% vs previous period (' + (opts.fmt ? opts.fmt(prev) : prev) + ')';
   }
 
+  // ===================== tab nav =====================
+
+  (function () {
+    var btnDashboard = document.getElementById('tab-btn-dashboard');
+    var btnGuide = document.getElementById('tab-btn-guide');
+    var viewDashboard = document.getElementById('view-dashboard');
+    var viewGuide = document.getElementById('view-guide');
+    function show(view) {
+      var isDashboard = view === 'dashboard';
+      viewDashboard.style.display = isDashboard ? '' : 'none';
+      viewGuide.style.display = isDashboard ? 'none' : '';
+      btnDashboard.classList.toggle('active', isDashboard);
+      btnGuide.classList.toggle('active', !isDashboard);
+    }
+    btnDashboard.onclick = function () { show('dashboard'); };
+    btnGuide.onclick = function () { show('guide'); };
+  })();
+
   // ===================== main load =====================
 
   Promise.all([
@@ -662,6 +861,116 @@
     } else {
       emptyState('chart-csat', 'No data yet in "Return tickets".');
     }
+
+    // ---------- Products panel (all-time, global — ignores the From/To filter) ----------
+    (function () {
+      var detailRows = Array.isArray(detail) ? detail : [];
+      if (!detailRows.length) {
+        document.getElementById('product-list').innerHTML = '<div class="product-row" style="cursor:default">No data yet in "Loop returns".</div>';
+        return;
+      }
+
+      var byProduct = {}; // product -> { count, daysSum, daysN, reasonCounts: {}, comments: [{text, week, order}] }
+      detailRows.forEach(function (r) {
+        var product = productOf(r['Product title']);
+        if (!byProduct[product]) byProduct[product] = { count: 0, daysSum: 0, daysN: 0, reasonCounts: {}, comments: [] };
+        var p = byProduct[product];
+        p.count++;
+        var d = toNum(r['Days to return']);
+        if (d !== null) { p.daysSum += d; p.daysN++; }
+        var reason = r['Return reason'] || r['Parent return reason'] || '(no reason given)';
+        p.reasonCounts[reason] = (p.reasonCounts[reason] || 0) + 1;
+        var comment = r['Return comment'];
+        if (comment && String(comment).trim()) {
+          p.comments.push({
+            text: String(comment).trim(),
+            week: r['ISO week'] != null ? 'W' + r['ISO week'] : '',
+            order: r['Order name'] || '',
+            sortKey: toDate(r['Week start (Monday)']) || new Date(0),
+          });
+        }
+      });
+
+      var globalProducts = Object.keys(byProduct).map(function (name) {
+        var p = byProduct[name];
+        var reasons = Object.keys(p.reasonCounts)
+          .map(function (r) { return { label: r, count: p.reasonCounts[r] }; })
+          .sort(function (a, b) { return b.count - a.count; });
+        var comments = p.comments.slice().sort(function (a, b) { return b.sortKey - a.sortKey; });
+        return {
+          name: name,
+          count: p.count,
+          avgDays: p.daysN ? p.daysSum / p.daysN : null,
+          reasons: reasons,
+          comments: comments,
+        };
+      }).sort(function (a, b) { return b.count - a.count; });
+
+      var selectedProduct = globalProducts.length ? globalProducts[0].name : null;
+
+      function renderProductList(filterText) {
+        var rows = globalProducts;
+        if (filterText) {
+          var needle = filterText.toLowerCase();
+          rows = rows.filter(function (p) { return p.name.toLowerCase().indexOf(needle) !== -1; });
+        }
+        var listEl = document.getElementById('product-list');
+        if (!rows.length) {
+          listEl.innerHTML = '<div class="product-row" style="cursor:default">No products match.</div>';
+          return;
+        }
+        listEl.innerHTML = rows.map(function (p) {
+          var activeClass = p.name === selectedProduct ? ' active' : '';
+          return '<div class="product-row' + activeClass + '" data-product="' + escapeHtml(p.name) + '">' +
+            '<span>' + escapeHtml(p.name) + '</span><span class="count">' + p.count + '</span></div>';
+        }).join('');
+        Array.prototype.forEach.call(listEl.querySelectorAll('.product-row[data-product]'), function (el) {
+          el.onclick = function () {
+            selectedProduct = el.getAttribute('data-product');
+            renderProductList(document.getElementById('product-search').value);
+            renderProductDetail(selectedProduct);
+          };
+        });
+      }
+
+      function renderProductDetail(name) {
+        var p = globalProducts.filter(function (x) { return x.name === name; })[0];
+        if (!p) {
+          document.getElementById('product-detail-name').textContent = '—';
+          document.getElementById('product-detail-count').textContent = '—';
+          document.getElementById('product-detail-days').textContent = '—';
+          emptyState('chart-product-reasons', 'Pick a product on the left.');
+          document.getElementById('product-comments').innerHTML = '';
+          return;
+        }
+        document.getElementById('product-detail-name').textContent = p.name;
+        document.getElementById('product-detail-count').textContent = p.count;
+        document.getElementById('product-detail-days').textContent = p.avgDays === null ? '—' : p.avgDays.toFixed(1);
+
+        var topReasons = p.reasons.slice(0, 15);
+        if (topReasons.length) {
+          barChart('chart-product-reasons', topReasons.map(function (r) { return r.label; }), topReasons.map(function (r) { return r.count; }), cssVar('--series-1'), {
+            horizontal: true,
+            tooltip: { label: function (ctx) { return topReasons[ctx.dataIndex].count + ' return' + (topReasons[ctx.dataIndex].count === 1 ? '' : 's'); } },
+          });
+        } else {
+          emptyState('chart-product-reasons', 'No return reason data for this product.');
+        }
+
+        var commentsEl = document.getElementById('product-comments');
+        if (p.comments.length) {
+          commentsEl.innerHTML = p.comments.slice(0, 50).map(function (c) {
+            return '<div class="comment-row"><div class="meta">' + escapeHtml(c.week) + (c.order ? ' · ' + escapeHtml(c.order) : '') + '</div>' + escapeHtml(c.text) + '</div>';
+          }).join('');
+        } else {
+          commentsEl.innerHTML = '<div class="comment-row">No customer comments recorded for this product yet — needs the "Return comment" column backfilled/running.</div>';
+        }
+      }
+
+      renderProductList('');
+      renderProductDetail(selectedProduct);
+      document.getElementById('product-search').oninput = function (e) { renderProductList(e.target.value); };
+    })();
 
     // ---------- Period filter + everything scoped to it ----------
     if (!Array.isArray(weekly) || !weekly.length) {
@@ -759,10 +1068,9 @@
       document.getElementById('desc-outcome').textContent = 'Refund vs. exchange vs. store credit, ' + (n > 1 ? n + ' selected weeks' : 'selected week') + '.';
 
       if (!currRows.length) {
-        ['chart-reasons', 'chart-outcome', 'chart-days-product'].forEach(function (id) {
+        ['chart-reasons', 'chart-outcome'].forEach(function (id) {
           emptyState(id, 'No "Loop returns" detail rows in the selected period.');
         });
-        document.querySelector('#table-reasons-product tbody').innerHTML = '';
         document.querySelector('#table-detail tbody').innerHTML = '';
         document.getElementById('detail-note').textContent = '';
         return;
@@ -794,52 +1102,7 @@
         emptyState('chart-outcome', 'No outcome data in the selected period.');
       }
 
-      // ---- by-product grouping (days to return + reasons) ----
-      var byProduct = {}; // product -> { count, daysSum, daysN, reasonCounts: {} }
-      currRows.forEach(function (r) {
-        var product = productOf(r['Product title']);
-        if (!byProduct[product]) byProduct[product] = { count: 0, daysSum: 0, daysN: 0, reasonCounts: {} };
-        var p = byProduct[product];
-        p.count++;
-        var d = toNum(r['Days to return']);
-        if (d !== null) { p.daysSum += d; p.daysN++; }
-        var reason = r['Parent return reason'] || '(no reason)';
-        p.reasonCounts[reason] = (p.reasonCounts[reason] || 0) + 1;
-      });
-      var productRows = Object.keys(byProduct).map(function (name) {
-        var p = byProduct[name];
-        var topReasons = Object.keys(p.reasonCounts)
-          .map(function (r) { return { label: r, count: p.reasonCounts[r] }; })
-          .sort(function (a, b) { return b.count - a.count; })
-          .slice(0, 3);
-        return {
-          name: name, count: p.count,
-          avgDays: p.daysN ? p.daysSum / p.daysN : null,
-          topReasons: topReasons,
-        };
-      }).sort(function (a, b) { return b.count - a.count; });
-
-      // Days-to-return by product chart: top 10 by return count, bar = avg days
-      var top10 = productRows.filter(function (p) { return p.avgDays !== null; }).slice(0, 10);
-      if (top10.length) {
-        barChart('chart-days-product', top10.map(function (p) { return p.name; }), top10.map(function (p) { return Math.round(p.avgDays * 10) / 10; }), cssVar('--series-4'), {
-          horizontal: true,
-          tooltip: { label: function (ctx) { return ctx.raw + ' days avg · ' + top10[ctx.dataIndex].count + ' returns'; } },
-        });
-      } else {
-        emptyState('chart-days-product', 'No days-to-return data for products in the selected period (needs the Shopify delivery enrichment).');
-      }
-
-      // Return reasons by product table
-      var reasonsTbody = document.querySelector('#table-reasons-product tbody');
-      reasonsTbody.innerHTML = productRows.slice(0, 20).map(function (p) {
-        var reasonsText = p.topReasons.map(function (r) { return escapeHtml(r.label) + ' (' + r.count + ')'; }).join(', ') || '—';
-        return '<tr><td>' + escapeHtml(p.name) + '</td><td class="num">' + p.count + '</td>' +
-          '<td class="num">' + (p.avgDays === null ? '—' : p.avgDays.toFixed(1)) + '</td>' +
-          '<td>' + reasonsText + '</td></tr>';
-      }).join('');
-
-      // ---- Return detail table (for Product), with search ----
+      // ---- Return detail table (selected period), with search ----
       var allDetailRows = currRows.map(function (r) {
         return {
           week: 'W' + r['ISO week'],
