@@ -161,42 +161,35 @@
 
   .period-row {
     display: flex;
-    justify-content: center;
     align-items: stretch;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin: 0 auto 8px;
-    width: fit-content;
-    max-width: 100%;
+    gap: 14px;
+    margin-bottom: 8px;
   }
   @media (max-width: 760px) {
-    .period-row { flex-direction: column; align-items: stretch; width: auto; }
+    .period-row { flex-direction: column; }
   }
   .kpi-col {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    flex: 0 0 auto;
-    width: 200px;
+    flex: 1;
+    min-width: 0;
   }
-  @media (max-width: 760px) {
-    .kpi-col { width: auto; }
-  }
-  .outcome-card { flex: 0 0 auto; width: 260px; display: flex; flex-direction: column; }
-  @media (max-width: 760px) {
-    .outcome-card { width: auto; }
-  }
+  .outcome-card { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .kpi {
     background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 10px 14px;
+    padding: 14px 16px;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
-  .kpi .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
-  .kpi .value { font-size: 21px; font-weight: 600; line-height: 1.1; }
-  .kpi .sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-  .kpi .delta { font-size: 11px; margin-top: 3px; color: var(--text-secondary); }
+  .kpi .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .kpi .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .kpi .delta { font-size: 12px; margin-top: 4px; color: var(--text-secondary); }
 
   .grid {
     display: grid;
@@ -514,8 +507,8 @@
 
     <div class="card outcome-card">
       <h2>Outcome</h2>
-      <p class="desc" id="desc-outcome">Refund vs. exchange vs. store credit, selected period. Hover a slice for its return value.</p>
-      <div class="chart-wrap" style="height:220px"><canvas id="chart-outcome"></canvas></div>
+      <p class="desc" id="desc-outcome">Refund vs. exchange vs. store credit, selected period — one return LINE ITEM per slice-count, so this sums to the "Returns" tile's total product returns, not its order count. Hover a slice for its return value.</p>
+      <div class="chart-wrap" style="height:240px"><canvas id="chart-outcome"></canvas></div>
     </div>
   </section>
 
@@ -620,7 +613,7 @@
     <div class="details-body">
       <ul>
         <li><b>Return rate — last matured cohort.</b> The only tile that ignores the From/To filter on purpose. It's the return rate of the most recent "matured" cohort (see "Return rate by purchase cohort" below). Needs the Shopify enrichment data to populate.</li>
-        <li><b>Returns.</b> Total returns in the selected period, counted by order (one return = one order, even if it has several line items), with the percent change vs. the prior period underneath. The smaller line below it shows how many distinct products (not SKUs/variants) had at least one return.</li>
+        <li><b>Returns.</b> The headline number is orders — one return = one order, even if that order has several products in it, so an order returning 5 products and another returning 2 counts as 2 here, not 7. The percent change vs. the prior period is underneath. The smaller line below that shows the total product-level returns instead (7, in that example) — that's the same count the Outcome chart's slices add up to, since Outcome is tallied per product/line item, not per order. That's the difference if those two numbers ever look like they "don't match": they're answering different questions on purpose.</li>
         <li><b>Avg days to return.</b> Average days between delivery and the return being submitted, for the selected period. Needs the Shopify "delivered at" data, same as the cohort chart.</li>
         <li><b>CSAT — return tickets.</b> Average satisfaction score for return-related support tickets in the selected period, weighted by how many surveys were actually scored each week (a week with more responses counts for more than a week with one or two).</li>
       </ul>
@@ -1317,21 +1310,6 @@
         document.getElementById('compare-note').textContent = note;
       }
 
-      // ---- weekly rollup aggregates (returns count, value) ----
-      function sumWeekly(field, keys) {
-        var total = 0, any = false;
-        weekly.forEach(function (r) {
-          var d = toDate(r['Week start (Monday)']);
-          if (d && keys[d.getTime()]) { total += (toNum(r[field]) || 0); any = true; }
-        });
-        return any ? total : null;
-      }
-      var currReturns = sumWeekly('Total returns', currKeys);
-      var prevReturns = hasPrev ? sumWeekly('Total returns', prevKeys) : null;
-
-      document.getElementById('kpi-count').textContent = currReturns === null ? '—' : currReturns;
-      document.getElementById('kpi-count-delta').innerHTML = deltaHtml(currReturns, prevReturns, { fmt: function (v) { return v; } });
-
       // ---- detail rows scoped to current / previous period ----
       var detailRows = Array.isArray(detail) ? detail : [];
       function inRange(r, keys) {
@@ -1341,14 +1319,25 @@
       var currRows = detailRows.filter(function (r) { return inRange(r, currKeys); });
       var prevRows = hasPrev ? detailRows.filter(function (r) { return inRange(r, prevKeys); }) : [];
 
-      // "Returns" KPI sub-line: total return LINE ITEMS by order (currReturns,
-      // above, is distinct Return IDs — i.e. by order) plus how many distinct
-      // products (not variants/SKUs) had at least one return in this period.
-      var uniqueProductsCount = Object.keys(
-        currRows.reduce(function (acc, r) { acc[productOf(r['Product title'])] = true; return acc; }, {})
-      ).length;
+      // "Returns" KPI: the headline number is ORDERS (distinct Order name) —
+      // e.g. order #123456 returning 5 products and order #145789 returning 2
+      // products is 2 returns, not 7. The sub-line below it shows the total
+      // product-level returns (currRows.length, one row per returned line
+      // item/product — the same grain the Outcome chart below tallies at,
+      // which is why Outcome's slices sum to THIS number, not the headline).
+      function distinctOrderCount(rows) {
+        var seen = {};
+        rows.forEach(function (r) { var o = r['Order name']; if (o) seen[o] = true; });
+        return Object.keys(seen).length;
+      }
+      var currReturns = distinctOrderCount(currRows);
+      var prevReturns = hasPrev ? distinctOrderCount(prevRows) : null;
+      document.getElementById('kpi-count').textContent = currReturns;
+      document.getElementById('kpi-count-delta').innerHTML = deltaHtml(currReturns, prevReturns, { fmt: function (v) { return v; } });
+
+      var totalLineItems = currRows.length;
       document.getElementById('kpi-count-products').textContent =
-        uniqueProductsCount + ' unique product' + (uniqueProductsCount === 1 ? '' : 's') + ' returned';
+        totalLineItems + ' total product return' + (totalLineItems === 1 ? '' : 's') + ' (across all orders)';
 
       var currDays = avg(currRows.map(function (r) { return toNum(r['Days to return']); }));
       var prevDays = hasPrev ? avg(prevRows.map(function (r) { return toNum(r['Days to return']); })) : null;
