@@ -509,6 +509,7 @@
       <h2>Outcome</h2>
       <p class="desc" id="desc-outcome">Refund vs. exchange vs. store credit, selected period — one return LINE ITEM per slice-count, so this sums to the "Returns" tile's total product returns, not its order count. Hover a slice for its return value.</p>
       <div class="chart-wrap" style="height:240px"><canvas id="chart-outcome"></canvas></div>
+      <div class="table-note" id="outcome-retained"></div>
     </div>
   </section>
 
@@ -525,11 +526,13 @@
           <div class="product-detail-header">
             <h3 id="product-detail-name">—</h3>
             <div class="product-detail-stats">
-              <div><b id="product-detail-count">—</b>returns, all-time</div>
+              <div><b id="product-detail-count">—</b>returns, selected period</div>
               <div><b id="product-detail-days">—</b>avg days to return</div>
             </div>
           </div>
           <div class="chart-wrap" style="height:220px"><canvas id="chart-product-reasons"></canvas></div>
+          <p class="desc" id="desc-days-histogram" style="margin-top:14px">When returns for this product actually happen, days after delivery — a cluster in the first few days points to a defect/packaging/sizing issue; a spread out further points more to buyer's remorse.</p>
+          <div class="chart-wrap" style="height:160px"><canvas id="chart-product-days"></canvas></div>
           <p class="table-note" id="product-comments-label" style="margin:10px 0 6px">Click a reason bar above to see only the comments for that reason. All comments for this product, most recent first, capped at 50:</p>
           <div class="comments-list" id="product-comments"></div>
         </div>
@@ -538,7 +541,7 @@
 
     <div class="card wide">
       <h2>Return detail (selected period)</h2>
-      <p class="desc">Every return line item in the From/To period selected above, with the customer's own comment. Search filters product, SKU, reason and comment text. For an all-time view of one product's reasons, use the "Products" panel above instead.</p>
+      <p class="desc">Every return line item in the From/To period selected above, with the customer's own comment. Search filters product, SKU, reason and comment text. Same period as the Products panel above — this is the row-by-row version, that one's grouped by product.</p>
       <input type="text" class="search-input" id="detail-search" placeholder="Search product, SKU, reason, comment…">
       <div class="table-scroll">
         <table class="data-table" id="table-detail">
@@ -547,6 +550,38 @@
         </table>
       </div>
       <div class="table-note" id="detail-note"></div>
+    </div>
+  </section>
+
+  <div class="section-label">Selected period — other lenses (CEO / Operations / Finance)</div>
+  <section class="grid">
+    <div class="card wide">
+      <h2>Repeat-return customers</h2>
+      <p class="desc" id="desc-repeat-customers">Customers with more than one return in the selected period — a pattern here is either a sign of expectations not matching the product, or a segment that costs more to serve than it looks like from order volume alone.</p>
+      <div class="table-scroll">
+        <table class="data-table" id="table-repeat-customers">
+          <thead><tr><th>Customer</th><th style="text-align:right">Returns</th><th style="text-align:right">Orders involved</th><th style="text-align:right">Refunded</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-note" id="repeat-customers-note"></div>
+    </div>
+
+    <div class="card wide">
+      <h2>Returns by carrier</h2>
+      <p class="desc" id="desc-carrier">Return COUNT by the carrier that delivered the order (from Shopify's tracking info) — not a rate, since this doesn't yet divide by how many orders each carrier shipped overall. Useful for spotting whether one carrier's deliveries are disproportionately showing up here, as a starting point for a conversation with that carrier.</p>
+      <div class="chart-wrap"><canvas id="chart-carrier"></canvas></div>
+      <div class="table-note" id="carrier-note"></div>
+    </div>
+
+    <div class="card wide">
+      <h2>Return reserve estimate</h2>
+      <p class="desc" id="desc-reserve">Orders from cohorts still inside the 100-day return window haven't finished generating returns yet. This projects how many more are likely, using the average return rate of recently matured cohorts, and turns that into an estimated $ still to be refunded — useful for finance to avoid under-reserving.</p>
+      <div class="kpi" style="max-width:420px">
+        <div class="label">Estimated additional returns, unmatured cohorts</div>
+        <div class="value" id="kpi-reserve-returns">—</div>
+        <div class="sub" id="kpi-reserve-detail"></div>
+      </div>
     </div>
   </section>
 
@@ -583,6 +618,13 @@
         <span><span class="dot" style="background:var(--text-muted)"></span>All tickets</span>
       </div>
     </div>
+
+    <div class="card wide">
+      <h2>Outcome mix over time</h2>
+      <p class="desc">Refund vs. exchange vs. store credit as a share of returns each week, last 12 weeks — a rising refund share means more cash is leaving instead of staying in the business as credit or exchange.</p>
+      <div class="chart-wrap"><canvas id="chart-outcome-trend"></canvas></div>
+      <div class="legend-note" id="outcome-trend-legend"></div>
+    </div>
   </section>
 </div>
 
@@ -595,14 +637,14 @@
   <details class="card" open>
     <summary><span class="chev">▶</span><span class="tag">Overview</span><h2>What this dashboard is</h2></summary>
     <div class="details-body">
-      <p>This page reads live data straight from the "CS Dashboard 2026" Google Sheet every time it's opened — nothing is cached, so reloading shows whatever is in the sheet right now. There are two kinds of sections: "Selected period", which responds to the From/To filter near the top, and the "Products" panel / "Trends" charts, which always show the full history regardless of that filter.</p>
+      <p>This page reads live data straight from the "CS Dashboard 2026" Google Sheet every time it's opened — nothing is cached, so reloading shows whatever is in the sheet right now. There are two kinds of sections: "Selected period" (the KPI tiles, Outcome, Products panel, Return detail, repeat customers, carrier chart and reserve estimate), which all respond to the From/To filter near the top, and "Trends", which always shows the full history regardless of that filter.</p>
     </div>
   </details>
 
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Filter bar</span><h2>From / To week filter</h2></summary>
     <div class="details-body">
-      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the KPI tiles, "Outcome", and the "Return detail" table) recalculates for exactly that range.</p>
+      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the KPI tiles, "Outcome", the Products panel, the "Return detail" table, repeat customers, returns by carrier, and the reserve estimate) recalculates for exactly that range.</p>
       <p>Whatever range you pick, it's automatically compared against the immediately preceding period of the same length — 1 week vs. the prior week, 4 weeks vs. the 4 weeks before that. The note under the filter bar spells out exactly which weeks are being compared. "Reset" jumps back to just the most recent week.</p>
       <p>It also carries through to the "Trends" charts below (returns/value per week, return rate by cohort): the weeks inside your selected range are shown at full color there, everything else dimmed, so you can see where the period you're looking at sits inside the longer trend.</p>
     </div>
@@ -624,6 +666,7 @@
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Outcome</h2></summary>
     <div class="details-body">
       <p>What actually happened to the returns in the selected period: refunded, exchanged, store credit, etc. Hover a slice to see its return value (total refund $) alongside the count — that's instead of its own KPI tile, to keep it attached to the outcome it belongs to. (A breakdown by return <i>reason</i> lives in the Products panel below instead, where it's more useful grouped by product.)</p>
+      <p>The line under the chart ("Of $X in returned value...") compares "Total return value" (the value of what was returned, whatever the outcome) against "Total refund amount" (actual cash refunded). The gap between them is what stayed in the business as store credit or an exchange instead of leaving as cash — a finance-relevant number the pie chart alone doesn't show.</p>
     </div>
   </details>
 
@@ -632,6 +675,7 @@
     <div class="details-body">
       <p>Built for the Product team specifically. On the left is every product (variants like different colors or sizes are merged — "Ekster Cardholder Pro, Jet Black" and "..., Olive" both count under "Ekster Cardholder Pro"), sorted by how many times it was returned in the selected period. Click one to see, on the right: its return count and average days to return for that period, a full breakdown of every return reason it had, and its customers' actual comments, most recent first.</p>
       <p>Click a bar in the reasons chart to narrow the comments list to just that reason (it turns orange while selected) — click it again, or use "clear filter", to see every comment for the product again.</p>
+      <p>Below the reasons chart, a small histogram shows how many days after delivery this product's returns actually happened. A cluster in the first few days points more toward a defect, packaging, or sizing problem; returns spread out over weeks look more like ordinary buyer's remorse.</p>
       <p>This panel now follows the From/To filter above it, so it always matches what the scorecards and Outcome chart are showing. For the raw row-by-row detail instead, use the "Return detail" table underneath it.</p>
     </div>
   </details>
@@ -640,6 +684,30 @@
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Return detail table</h2></summary>
     <div class="details-body">
       <p>One row per returned line item, limited to the From/To period selected above. Search filters by product, SKU, reason, or comment text. Capped at 500 rows at a time — narrow the period or the search to see more.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Repeat-return customers</h2></summary>
+    <div class="details-body">
+      <p>Every customer with more than one return in the selected period, by email, ranked by return count (counting distinct Loop returns, not line items — a single return with 3 products in it is still 1 return here). A name showing up here repeatedly across different periods is worth a look: it can mean a product keeps not matching expectations for that person, or it's a customer who, however good their orders look on paper, costs more to serve than they generate.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Returns by carrier</h2></summary>
+    <div class="details-body">
+      <p>Counts returns by the shipping carrier that delivered the order, pulled from Shopify's own tracking info on the fulfillment. Added 2026-10-05 specifically to give the GOFO carrier investigation hard numbers instead of anecdotes from individual tickets.</p>
+      <p>This is a COUNT, not a rate — it doesn't yet know how many orders each carrier shipped in total, only how many of its deliveries came back. A carrier that ships more volume will naturally show more returns here even if its return RATE is normal; treat this as a starting point for the conversation, not a finished verdict on any one carrier.</p>
+      <p>Only populates going forward, or for a week re-synced after 2026-10-05 (running "backfillLoopReturnComments" once re-syncs every historical week and fills this in for all of them).</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Return reserve estimate</h2></summary>
+    <div class="details-body">
+      <p>For the cohort weeks in your selected period that are still "Provisional" (inside Ekster's 100-day return window), this projects how many more returns are likely before that window closes, and what that's likely to cost in refunds. The projection applies the average return rate of the last several already-"Matured" cohorts to the provisional cohort's order count, then subtracts what's already come back — the rest is the projected remainder. The $ estimate multiplies that by the average refund-per-return seen in the selected period.</p>
+      <p>This is a projection, not a committed number — treat it as finance's starting point for a refund reserve, not a guarantee. If every cohort in the selected period has already matured, there's nothing left to project and the tile says so.</p>
     </div>
   </details>
 
@@ -661,6 +729,13 @@
     <summary><span class="chev">▶</span><span class="tag">Trends — all-time</span><h2>CSAT — return tickets vs. all tickets</h2></summary>
     <div class="details-body">
       <p>Average satisfaction survey score by week, return-related tickets vs. the overall average across all support tickets. Useful for spotting whether returns are dragging satisfaction down relative to everything else.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary><span class="chev">▶</span><span class="tag">Trends — all-time</span><h2>Outcome mix over time</h2></summary>
+    <div class="details-body">
+      <p>Each week's returns broken down as a % of refund vs. exchange vs. store credit, last 12 weeks. Unlike the Outcome pie chart above (which is for the selected period only), this one always shows the last 12 weeks regardless of the From/To filter, so you can see whether the mix is trending in a direction — a growing refund share means more cash leaving the business instead of staying in as credit or exchange.</p>
     </div>
   </details>
 
@@ -835,6 +910,28 @@
           y: { grid: { display: !opts.horizontal, color: cssVar('--grid') }, ticks: { color: cssVar('--text-muted') }, beginAtZero: true },
         },
       }, opts.chartOptions || {}),
+    });
+    chartInstances[canvasId] = chart;
+    return chart;
+  }
+
+  // 100%-stacked bar chart — used for the Outcome-mix-over-time trend, where
+  // what matters is the SHARE each outcome holds each week, not raw counts.
+  function stackedBarChart(canvasId, labels, datasets, opts) {
+    opts = opts || {};
+    destroyIfExists(canvasId);
+    var canvas = resetChartWrap(canvasId);
+    var chart = new Chart(canvas, {
+      type: 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: opts.tooltip || {} } },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { color: cssVar('--text-muted') } },
+          y: { stacked: true, grid: { color: cssVar('--grid') }, ticks: { color: cssVar('--text-muted'), callback: function (v) { return v + '%'; } }, min: 0, max: 100 },
+        },
+      },
     });
     chartInstances[canvasId] = chart;
     return chart;
@@ -1102,6 +1199,66 @@
       emptyState('chart-csat', 'No data yet in "Return tickets".');
     }
 
+    // ---------- Outcome mix over time (all-time trend, like the charts
+    // above — not scoped to the From/To filter) ----------
+    (function renderOutcomeTrendChart() {
+      var rows = Array.isArray(detail) ? detail : [];
+      if (!rows.length) {
+        emptyState('chart-outcome-trend', 'No "Loop returns" detail rows yet.');
+        return;
+      }
+      var byWeek = {}; // week-start ms -> { 'ISO week', weekStart, counts: {outcome: n}, total }
+      rows.forEach(function (r) {
+        var d = toDate(r['Week start (Monday)']);
+        if (!d) return;
+        var key = d.getTime();
+        if (!byWeek[key]) byWeek[key] = { 'ISO week': r['ISO week'], weekStart: d, counts: {}, total: 0 };
+        var label = r['Outcome'] ? String(r['Outcome']) : '(none)';
+        byWeek[key].counts[label] = (byWeek[key].counts[label] || 0) + 1;
+        byWeek[key].total++;
+      });
+      var weeks = Object.keys(byWeek).map(function (k) { return byWeek[k]; })
+        .sort(function (a, b) { return a.weekStart - b.weekStart; })
+        .slice(-12); // last 12 weeks, oldest -> newest, same convention as the other trend charts
+
+      if (!weeks.length) {
+        emptyState('chart-outcome-trend', 'No "Loop returns" detail rows yet.');
+        return;
+      }
+
+      // Fixed outcome order/colors so "Refund" is always the same color week
+      // to week, instead of whatever happens to be most common that week.
+      var outcomeOrder = ['Refund', 'Exchange', 'Store Credit'];
+      var seenOther = {};
+      weeks.forEach(function (w) { Object.keys(w.counts).forEach(function (k) { if (outcomeOrder.indexOf(k) === -1) seenOther[k] = true; }); });
+      var allOutcomes = outcomeOrder.filter(function (o) { return weeks.some(function (w) { return w.counts[o]; }); }).concat(Object.keys(seenOther));
+      var colors = [cssVar('--series-1'), cssVar('--series-2'), cssVar('--series-3'), cssVar('--series-4'), cssVar('--series-5')];
+
+      var datasets = allOutcomes.map(function (outcome, i) {
+        return {
+          label: outcome,
+          data: weeks.map(function (w) { return w.total ? Math.round((w.counts[outcome] || 0) / w.total * 1000) / 10 : 0; }),
+          backgroundColor: colors[i % colors.length],
+          borderRadius: 2,
+        };
+      });
+
+      stackedBarChart('chart-outcome-trend', weeks.map(isoWeekLabel), datasets, {
+        tooltip: {
+          label: function (ctx) {
+            var w = weeks[ctx.dataIndex];
+            var outcome = allOutcomes[ctx.datasetIndex];
+            var n = w.counts[outcome] || 0;
+            return outcome + ': ' + ctx.raw + '% (' + n + ' return' + (n === 1 ? '' : 's') + ')';
+          },
+        },
+      });
+
+      document.getElementById('outcome-trend-legend').innerHTML = allOutcomes.map(function (o, i) {
+        return '<span><span class="dot" style="background:' + colors[i % colors.length] + '"></span>' + escapeHtml(o) + '</span>';
+      }).join('');
+    })();
+
     // ---------- Products panel (now scoped to the From/To filter, like the
     // rest of "Selected period" — rebuilt by renderPeriod() below every time
     // the filter changes) ----------
@@ -1117,14 +1274,33 @@
         return;
       }
 
-      var byProduct = {}; // product -> { count, daysSum, daysN, reasonCounts: {}, comments: [{text, week, order}] }
+      // Days-to-return bucket edges, used for the per-product histogram below —
+      // tight buckets early (where a defect/packaging issue would show up
+      // fast) widening out toward "buyer's remorse after a while" territory.
+      var DAYS_BUCKETS = [
+        { label: '0–3d', max: 3 },
+        { label: '4–7d', max: 7 },
+        { label: '8–14d', max: 14 },
+        { label: '15–30d', max: 30 },
+        { label: '31d+', max: Infinity },
+      ];
+      function daysBucketLabel(d) {
+        for (var i = 0; i < DAYS_BUCKETS.length; i++) { if (d <= DAYS_BUCKETS[i].max) return DAYS_BUCKETS[i].label; }
+        return DAYS_BUCKETS[DAYS_BUCKETS.length - 1].label;
+      }
+
+      var byProduct = {}; // product -> { count, daysSum, daysN, daysBuckets: {}, reasonCounts: {}, comments: [{text, week, order}] }
       rows.forEach(function (r) {
         var product = productOf(r['Product title']);
-        if (!byProduct[product]) byProduct[product] = { count: 0, daysSum: 0, daysN: 0, reasonCounts: {}, comments: [] };
+        if (!byProduct[product]) byProduct[product] = { count: 0, daysSum: 0, daysN: 0, daysBuckets: {}, reasonCounts: {}, comments: [] };
         var p = byProduct[product];
         p.count++;
         var d = toNum(r['Days to return']);
-        if (d !== null) { p.daysSum += d; p.daysN++; }
+        if (d !== null) {
+          p.daysSum += d; p.daysN++;
+          var bucket = daysBucketLabel(d);
+          p.daysBuckets[bucket] = (p.daysBuckets[bucket] || 0) + 1;
+        }
         var reason = r['Return reason'] || r['Parent return reason'] || '(no reason given)';
         p.reasonCounts[reason] = (p.reasonCounts[reason] || 0) + 1;
         var comment = r['Return comment'];
@@ -1145,10 +1321,13 @@
           .map(function (r) { return { label: r, count: p.reasonCounts[r] }; })
           .sort(function (a, b) { return b.count - a.count; });
         var comments = p.comments.slice().sort(function (a, b) { return b.sortKey - a.sortKey; });
+        var daysHistogram = DAYS_BUCKETS.map(function (b) { return { label: b.label, count: p.daysBuckets[b.label] || 0 }; });
         return {
           name: name,
           count: p.count,
           avgDays: p.daysN ? p.daysSum / p.daysN : null,
+          daysHistogram: daysHistogram,
+          daysN: p.daysN,
           reasons: reasons,
           comments: comments,
         };
@@ -1240,6 +1419,16 @@
         }
       }
 
+      function renderDaysHistogram(p) {
+        if (!p.daysN) {
+          emptyState('chart-product-days', 'No "Days to return" data for this product in the selected period.');
+          return;
+        }
+        barChart('chart-product-days', p.daysHistogram.map(function (b) { return b.label; }), p.daysHistogram.map(function (b) { return b.count; }), cssVar('--series-3'), {
+          tooltip: { label: function (ctx) { var c = p.daysHistogram[ctx.dataIndex].count; return c + ' return' + (c === 1 ? '' : 's'); } },
+        });
+      }
+
       function renderProductDetail(name) {
         var p = globalProducts.filter(function (x) { return x.name === name; })[0];
         selectedReason = null;
@@ -1248,6 +1437,7 @@
           document.getElementById('product-detail-count').textContent = '—';
           document.getElementById('product-detail-days').textContent = '—';
           emptyState('chart-product-reasons', 'Pick a product on the left.');
+          emptyState('chart-product-days', 'Pick a product on the left.');
           document.getElementById('product-comments').innerHTML = '';
           return;
         }
@@ -1256,6 +1446,7 @@
         document.getElementById('product-detail-days').textContent = p.avgDays === null ? '—' : p.avgDays.toFixed(1);
 
         renderReasonsChart(p);
+        renderDaysHistogram(p);
         renderProductComments(p, null);
       }
 
@@ -1379,8 +1570,138 @@
       document.getElementById('kpi-csat').textContent = currCsat === null ? '—' : currCsat.toFixed(2);
       document.getElementById('kpi-csat-delta').innerHTML = deltaHtml(currCsat, prevCsat, { fmt: function (v) { return v.toFixed(2); } });
 
+      // ---- Value retained vs. returned (CEO-level read on Outcome) ----
+      // "Total return value" (Loop's `total`) is the value of the returned
+      // item(s) regardless of outcome; "Total refund amount" is cash actually
+      // refunded. The gap between them is value that stayed in the business —
+      // store credit issued or an exchange — instead of leaving as cash. Uses
+      // the weekly-aggregated sheet (not currRows) since those two totals are
+      // already computed there per week.
+      var weeklyRowsInPeriod = (Array.isArray(weekly) ? weekly : []).filter(function (r) {
+        var d = toDate(r['Week start (Monday)']);
+        return d && currKeys[d.getTime()];
+      });
+      var totalReturnValue = weeklyRowsInPeriod.reduce(function (sum, r) { return sum + (toNum(r['Total return value']) || 0); }, 0);
+      var totalRefunded = weeklyRowsInPeriod.reduce(function (sum, r) { return sum + (toNum(r['Total refund amount']) || 0); }, 0);
+      var retained = Math.max(0, totalReturnValue - totalRefunded);
+      var retainedPct = totalReturnValue ? (retained / totalReturnValue) * 100 : null;
+      document.getElementById('outcome-retained').innerHTML = totalReturnValue
+        ? 'Of ' + fmtMoney(totalReturnValue) + ' in returned value, <b>' + fmtMoney(retained) + '</b> (' + fmtPct(retainedPct) + ') stayed in the business as store credit or exchange instead of leaving as cash refund.'
+        : '';
+
       document.getElementById('desc-outcome').textContent = 'Refund vs. exchange vs. store credit, ' + (n > 1 ? n + ' selected weeks' : 'selected week') + '.';
       document.getElementById('desc-products').textContent = 'Pick a product on the left (grouped by product, not variant — color/size variants are combined) to see every return reason it had in ' + (n > 1 ? 'the ' + n + ' selected weeks' : 'the selected week') + ', plus its own customer comments.';
+
+      // ---- Repeat-return customers (selected period) ----
+      (function renderRepeatCustomers() {
+        var tbody = document.querySelector('#table-repeat-customers tbody');
+        var byCustomer = {}; // email -> { returnIds: {}, orders: {}, refund }
+        currRows.forEach(function (r) {
+          var email = r['Customer email'];
+          if (!email) return;
+          if (!byCustomer[email]) byCustomer[email] = { returnIds: {}, orders: {}, refund: 0 };
+          var c = byCustomer[email];
+          // Return ID, not line item — a 3-product single return is still 1
+          // return, same grain as the "Returns" KPI tile above.
+          if (r['Return ID'] != null) c.returnIds[r['Return ID']] = true;
+          if (r['Order name']) c.orders[r['Order name']] = true;
+          c.refund += toNum(r['Refund amount']) || 0;
+        });
+        var repeat = Object.keys(byCustomer).map(function (email) {
+          var c = byCustomer[email];
+          return { email: email, returns: Object.keys(c.returnIds).length, orders: Object.keys(c.orders).length, refund: c.refund };
+        }).filter(function (c) { return c.returns > 1; })
+          .sort(function (a, b) { return b.returns - a.returns; })
+          .slice(0, 15);
+
+        if (!repeat.length) {
+          tbody.innerHTML = '';
+          document.getElementById('repeat-customers-note').textContent = 'No customer had more than one return in the selected period.';
+          return;
+        }
+        tbody.innerHTML = repeat.map(function (c) {
+          return '<tr><td>' + escapeHtml(c.email) + '</td><td style="text-align:right">' + c.returns + '</td><td style="text-align:right">' + c.orders + '</td><td style="text-align:right">' + fmtMoney(c.refund) + '</td></tr>';
+        }).join('');
+        document.getElementById('repeat-customers-note').textContent = 'Top ' + repeat.length + ' by return count, selected period. Needs "Customer email" populated by the weekly script.';
+      })();
+
+      // ---- Returns by carrier (selected period) ----
+      (function renderCarrierChart() {
+        var byCarrier = {};
+        currRows.forEach(function (r) {
+          var carrier = r['Carrier (shipping)'];
+          if (!carrier) return;
+          byCarrier[carrier] = (byCarrier[carrier] || 0) + 1;
+        });
+        var carriers = Object.keys(byCarrier).map(function (k) { return { label: k, count: byCarrier[k] }; })
+          .sort(function (a, b) { return b.count - a.count; });
+        if (!carriers.length) {
+          emptyState('chart-carrier', 'No carrier data yet — needs the Shopify "trackingInfo" enrichment added 2026-10-05. Weeks re-synced before that date won\'t have it until re-run.');
+          document.getElementById('carrier-note').textContent = '';
+          return;
+        }
+        barChart('chart-carrier', carriers.map(function (c) { return c.label; }), carriers.map(function (c) { return c.count; }), cssVar('--series-4'), {
+          horizontal: true,
+          tooltip: { label: function (ctx) { return carriers[ctx.dataIndex].count + ' return' + (carriers[ctx.dataIndex].count === 1 ? '' : 's'); } },
+        });
+        var totalWithCarrier = carriers.reduce(function (s, c) { return s + c.count; }, 0);
+        var noCarrier = currRows.length - totalWithCarrier;
+        document.getElementById('carrier-note').textContent = noCarrier > 0
+          ? noCarrier + ' of ' + currRows.length + ' return line item(s) this period had no carrier on file (order lookup failed, or no tracking info in Shopify).'
+          : '';
+      })();
+
+      // ---- Return reserve estimate (selected period's still-provisional cohorts) ----
+      (function renderReserveEstimate() {
+        var cohortRows = Array.isArray(cohort) ? cohort : [];
+        var selectedCohorts = cohortRows.filter(function (r) {
+          var d = toDate(r['Week start (Monday)']);
+          return d && currKeys[d.getTime()];
+        });
+        var provisional = selectedCohorts.filter(function (r) { return String(r['Cohort status']).indexOf('Provisional') === 0; });
+        var matured = cohortRows.filter(function (r) { return String(r['Cohort status']).indexOf('Matured') === 0; });
+
+        if (!provisional.length) {
+          document.getElementById('kpi-reserve-returns').textContent = '—';
+          document.getElementById('kpi-reserve-detail').textContent = selectedCohorts.length
+            ? 'Every cohort in the selected period has already matured — no further returns expected from it.'
+            : 'No cohort data for the selected period yet.';
+          return;
+        }
+        // Average return rate of the most recently matured cohorts — the
+        // best available estimate of where a still-provisional cohort will
+        // likely land once its own window closes.
+        var recentMatured = matured.slice(-8).map(function (r) { return toNum(r['Return rate (%)']); }).filter(function (v) { return v !== null; });
+        var avgMaturedRate = recentMatured.length ? recentMatured.reduce(function (s, v) { return s + v; }, 0) / recentMatured.length : null;
+
+        if (avgMaturedRate === null) {
+          document.getElementById('kpi-reserve-returns').textContent = '—';
+          document.getElementById('kpi-reserve-detail').textContent = 'Not enough matured cohort history yet to project a rate.';
+          return;
+        }
+        // Average refund $ per return, from the selected period's own detail
+        // rows, as the $ conversion factor — falls back to the all-time
+        // average if the period itself has too few returns to be reliable.
+        var refundsThisPeriod = currRows.map(function (r) { return toNum(r['Refund amount']); }).filter(function (v) { return v !== null && v > 0; });
+        var avgRefundPerReturn = refundsThisPeriod.length
+          ? refundsThisPeriod.reduce(function (s, v) { return s + v; }, 0) / refundsThisPeriod.length
+          : null;
+
+        var estReturns = 0, estDollars = 0;
+        provisional.forEach(function (r) {
+          var orders = toNum(r['Orders this week (Shopify)']) || 0;
+          var alreadyReturned = toNum(r['Returns from this cohort (so far)']) || 0;
+          var projected = Math.max(0, Math.round(orders * avgMaturedRate / 100) - alreadyReturned);
+          estReturns += projected;
+        });
+        estDollars = avgRefundPerReturn !== null ? estReturns * avgRefundPerReturn : null;
+
+        document.getElementById('kpi-reserve-returns').textContent = estReturns;
+        document.getElementById('kpi-reserve-detail').textContent =
+          'Projected on top of what\'s already come back, across ' + provisional.length + ' still-open cohort week' + (provisional.length === 1 ? '' : 's') +
+          ', using the last ' + recentMatured.length + ' matured cohorts\' average rate (' + avgMaturedRate.toFixed(1) + '%)' +
+          (estDollars !== null ? ' ≈ ' + fmtMoney(estDollars) + ' more in refunds, at this period\'s average refund per return.' : '.');
+      })();
 
       if (!currRows.length) {
         emptyState('chart-outcome', 'No "Loop returns" detail rows in the selected period.');
