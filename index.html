@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Returns dashboard</title>
+<meta name="description" content="Ekster CS returns dashboard — cohort return rate, Loop return reasons, Shopify enrichment, CSAT.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="chart.umd.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1: #2a78d6; /* blue */
+    --series-2: #eb6834; /* orange */
+    --series-3: #1baf7a; /* aqua */
+    --series-4: #eda100; /* yellow */
+    --series-5: #e87ba4; /* magenta */
+    --status-good: #0ca30c;
+    --status-warning: #fab219;
+    --status-serious: #ec835a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #d55181;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 20px 20px 12px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+  .asof { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+
+  #banner {
+    max-width: 1280px;
+    margin: 0 auto 8px;
+    padding: 0 20px;
+  }
+  .notice {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--status-warning);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: none;
+  }
+  .notice.show { display: block; }
+  .notice b { color: var(--text-primary); }
+  .notice code {
+    background: var(--page-plane);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 8px 20px 40px;
+  }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 760px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+  }
+  .kpi {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .kpi .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .kpi .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .kpi .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    min-width: 0;
+  }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 2px;
+  }
+  .card .desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+  }
+  .card .chart-wrap { position: relative; height: 260px; }
+  .empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 260px;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  .legend-note {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+  }
+  .legend-note span.dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 2px;
+    margin-right: 5px;
+  }
+
+  footer {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 20px 30px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Returns dashboard</h1>
+  <p>Loop Returns × Shopify, read live from the CS Dashboard 2026 sheet.</p>
+  <div class="asof" id="asof">Loading…</div>
+</header>
+
+<div id="banner"></div>
+
+<main>
+  <section class="kpis" id="kpis">
+    <div class="kpi"><div class="label">Return rate — last matured cohort</div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
+    <div class="kpi"><div class="label">Returns this week</div><div class="value" id="kpi-count">—</div><div class="sub" id="kpi-count-sub"></div></div>
+    <div class="kpi"><div class="label">Return value this week</div><div class="value" id="kpi-value">—</div><div class="sub" id="kpi-value-sub"></div></div>
+    <div class="kpi"><div class="label">CSAT — return tickets</div><div class="value" id="kpi-csat">—</div><div class="sub" id="kpi-csat-sub"></div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card wide">
+      <h2>Return rate by purchase cohort</h2>
+      <p class="desc">% of orders from each delivery week that eventually come back — not the same as "returns processed that week." Provisional cohorts are still inside Ekster's 100-day return window.</p>
+      <div class="chart-wrap"><canvas id="chart-cohort"></canvas></div>
+      <div class="legend-note">
+        <span><span class="dot" style="background:var(--series-1)"></span>Matured (final)</span>
+        <span><span class="dot" style="background:var(--text-muted)"></span>Provisional (still in window)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Returns per week</h2>
+      <p class="desc">Count of Loop returns submitted that week (Loop returns weekly).</p>
+      <div class="chart-wrap"><canvas id="chart-volume"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Return value per week</h2>
+      <p class="desc">Total refund amount of returns submitted that week.</p>
+      <div class="chart-wrap"><canvas id="chart-value"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Top return reasons</h2>
+      <p class="desc">Parent return reason, last 8 weeks of detail rows.</p>
+      <div class="chart-wrap"><canvas id="chart-reasons"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Outcome</h2>
+      <p class="desc">Refund vs. exchange vs. store credit, last 8 weeks.</p>
+      <div class="chart-wrap"><canvas id="chart-outcome"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Customer type</h2>
+      <p class="desc">New vs. recurring, by current lifetime order count (Shopify). Reflects status as of today, not at time of that order.</p>
+      <div class="chart-wrap" id="customer-type-wrap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Days to return</h2>
+      <p class="desc">Days between delivery and Loop return submission, last 8 weeks.</p>
+      <div class="chart-wrap"><canvas id="chart-days"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Sales channel</h2>
+      <p class="desc">Where the original order was placed (Shopify).</p>
+      <div class="chart-wrap"><canvas id="chart-channel"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Top shipping countries</h2>
+      <p class="desc">Shipping country of the returned order (Shopify).</p>
+      <div class="chart-wrap"><canvas id="chart-country"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>CSAT — return tickets vs. all tickets</h2>
+      <p class="desc">Average satisfaction survey score by week.</p>
+      <div class="chart-wrap"><canvas id="chart-csat"></canvas></div>
+      <div class="legend-note">
+        <span><span class="dot" style="background:var(--series-1)"></span>Return tickets</span>
+        <span><span class="dot" style="background:var(--text-muted)"></span>All tickets</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Reads the "Loop returns", "Loop returns (weekly)", "Return rate (cohort)" and "Return tickets" tabs directly from the sheet.
+  Sales channel, country, customer type and the cohort return rate depend on the Shopify enrichment columns — they'll stay empty until that script run has valid Shopify credentials.
+</footer>
+
+<script>
+(function () {
+  var SHEET_ID = '1UBJHeKr7VFW4sr5kd-mZRsDsNtvGeWP6sF8WxmMiG_Q';
+  var WEEKS_FOR_DETAIL = 8; // how many recent weeks of "Loop returns" detail rows to pull for reason/outcome/geo/channel/days charts
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function gvizUrl(sheetName) {
+    return 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(sheetName);
+  }
+
+  // Parses the gviz JSONP-wrapped response into an array of plain objects,
+  // keyed by each column's header label (row 1 of the sheet).
+  function fetchTab(sheetName) {
+    return fetch(gvizUrl(sheetName), { credentials: 'omit' }).then(function (resp) {
+      return resp.text();
+    }).then(function (text) {
+      var match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/);
+      if (!match) throw new Error('Unexpected response for "' + sheetName + '" — sheet probably isn\'t link-shared yet.');
+      var json = JSON.parse(match[1]);
+      if (json.status === 'error') {
+        throw new Error('gviz error for "' + sheetName + '": ' + (json.errors && json.errors[0] && json.errors[0].detailed_message));
+      }
+      var cols = json.table.cols.map(function (c) { return c.label || c.id; });
+      var rows = json.table.rows.map(function (r) {
+        var obj = {};
+        cols.forEach(function (label, i) {
+          var cell = r.c[i];
+          obj[label] = cell ? (cell.f !== undefined && cell.f !== null ? cell.f : cell.v) : null;
+        });
+        return obj;
+      });
+      return rows;
+    });
+  }
+
+  function showBanner(message) {
+    var el = document.getElementById('banner');
+    el.innerHTML = '<div class="notice show"><b>Can\'t read the sheet yet.</b> ' + message + '</div>';
+  }
+
+  function emptyState(canvasId, message) {
+    var canvas = document.getElementById(canvasId);
+    var wrap = canvas.closest('.chart-wrap');
+    wrap.innerHTML = '<div class="empty-state">' + message + '</div>';
+  }
+
+  function fmtMoney(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+  function fmtPct(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toFixed(1) + '%';
+  }
+
+  var baseFont = { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: 11 };
+  Chart.defaults.font = baseFont;
+  Chart.defaults.color = cssVar('--text-secondary');
+  Chart.defaults.borderColor = cssVar('--grid');
+
+  function barChart(canvasId, labels, data, color, opts) {
+    opts = opts || {};
+    return new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 4, maxBarThickness: 34 }] },
+      options: Object.assign({
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: opts.horizontal ? 'y' : 'x',
+        plugins: { legend: { display: false }, tooltip: { callbacks: opts.tooltip || {} } },
+        scales: {
+          x: { grid: { display: opts.horizontal }, ticks: { color: cssVar('--text-muted') } },
+          y: { grid: { display: !opts.horizontal, color: cssVar('--grid') }, ticks: { color: cssVar('--text-muted') }, beginAtZero: true },
+        },
+      }, opts.chartOptions || {}),
+    });
+  }
+
+  function lineChart(canvasId, labels, datasets) {
+    return new Chart(document.getElementById(canvasId), {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: cssVar('--text-muted') } },
+          y: { grid: { color: cssVar('--grid') }, ticks: { color: cssVar('--text-muted') }, beginAtZero: true },
+        },
+        elements: { point: { radius: 3, hoverRadius: 5 }, line: { tension: 0.25, borderWidth: 2 } },
+      },
+    });
+  }
+
+  function statusColorFor(status) {
+    return (status && String(status).indexOf('Provisional') === 0) ? cssVar('--text-muted') : cssVar('--series-1');
+  }
+
+  function toNum(v) {
+    var n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+
+  function isoWeekLabel(row) {
+    return 'W' + row['ISO week'];
+  }
+
+  Promise.all([
+    fetchTab('Loop returns (weekly)').catch(function (e) { return { err: e }; }),
+    fetchTab('Return rate (cohort)').catch(function (e) { return { err: e }; }),
+    fetchTab('Loop returns').catch(function (e) { return { err: e }; }),
+    fetchTab('Return tickets').catch(function (e) { return { err: e }; }),
+  ]).then(function (results) {
+    var weekly = results[0], cohort = results[1], detail = results[2], tickets = results[3];
+
+    var anyOk = [weekly, cohort, detail, tickets].some(function (r) { return Array.isArray(r); });
+    if (!anyOk) {
+      showBanner('None of the tabs loaded. Most likely the sheet isn\'t shared as "Anyone with the link (Ekster) — Viewer" yet — that\'s what this page reads over. Share → General access → Anyone at ekster.com with the link.');
+      document.getElementById('asof').textContent = 'Could not load data.';
+      return;
+    }
+    document.getElementById('asof').textContent = 'Loaded ' + new Date().toLocaleString();
+
+    // ---------- Weekly volume & value ----------
+    if (Array.isArray(weekly) && weekly.length) {
+      var w = weekly.slice(-12);
+      barChart('chart-volume', w.map(isoWeekLabel), w.map(function (r) { return toNum(r['Total returns']); }), cssVar('--series-1'));
+      barChart('chart-value', w.map(isoWeekLabel), w.map(function (r) { return toNum(r['Total refund amount']); }), cssVar('--series-2'), {
+        tooltip: { label: function (ctx) { return fmtMoney(ctx.raw); } },
+      });
+      var last = w[w.length - 1];
+      document.getElementById('kpi-count').textContent = last ? toNum(last['Total returns']) : '—';
+      document.getElementById('kpi-count-sub').textContent = last ? ('week ' + last['ISO week']) : '';
+      document.getElementById('kpi-value').textContent = last ? fmtMoney(last['Total refund amount']) : '—';
+      document.getElementById('kpi-value-sub').textContent = last ? ('week ' + last['ISO week']) : '';
+    } else {
+      ['chart-volume', 'chart-value'].forEach(function (id) { emptyState(id, 'No data yet in "Loop returns (weekly)".'); });
+    }
+
+    // ---------- Cohort return rate ----------
+    if (Array.isArray(cohort) && cohort.length) {
+      var c = cohort.slice().reverse(); // sheet is newest-first per the script; show oldest -> newest
+      barChart('chart-cohort', c.map(isoWeekLabel), c.map(function (r) { return toNum(r['Return rate (%)']); }),
+        c.map(function (r) { return statusColorFor(r['Cohort status']); }), {
+          tooltip: {
+            label: function (ctx) {
+              var row = c[ctx.dataIndex];
+              return fmtPct(ctx.raw) + ' · ' + row['Cohort status'];
+            },
+          },
+        });
+      var matured = c.filter(function (r) { return String(r['Cohort status']).indexOf('Matured') === 0; });
+      var lastMatured = matured[matured.length - 1];
+      if (lastMatured) {
+        document.getElementById('kpi-rate').textContent = fmtPct(toNum(lastMatured['Return rate (%)']));
+        document.getElementById('kpi-rate-sub').textContent = 'week ' + lastMatured['ISO week'] + ' · matured';
+      } else {
+        document.getElementById('kpi-rate-sub').textContent = 'no matured cohort yet';
+      }
+    } else {
+      emptyState('chart-cohort', 'No data yet in "Return rate (cohort)" — needs a run with working Shopify credentials.');
+    }
+
+    // ---------- Detail-derived charts (reasons, outcome, customer type, days, channel, country) ----------
+    if (Array.isArray(detail) && detail.length) {
+      var isoWeeks = Array.from(new Set(detail.map(function (r) { return r['ISO week']; }))).sort(function (a, b) { return b - a; }).slice(0, WEEKS_FOR_DETAIL);
+      var recent = detail.filter(function (r) { return isoWeeks.indexOf(r['ISO week']) !== -1; });
+
+      function tally(field, opts) {
+        opts = opts || {};
+        var counts = {};
+        recent.forEach(function (r) {
+          var v = r[field];
+          if (!v && !opts.keepBlank) return;
+          v = String(v || '(unknown)');
+          counts[v] = (counts[v] || 0) + 1;
+        });
+        return Object.keys(counts).map(function (k) { return { label: k, count: counts[k] }; })
+          .sort(function (a, b) { return b.count - a.count; });
+      }
+
+      // Return reasons
+      var reasons = tally('Parent return reason').slice(0, 8);
+      if (reasons.length) {
+        barChart('chart-reasons', reasons.map(function (r) { return r.label; }), reasons.map(function (r) { return r.count; }), cssVar('--series-1'), { horizontal: true });
+      } else {
+        emptyState('chart-reasons', 'No return reason data in the last ' + WEEKS_FOR_DETAIL + ' weeks.');
+      }
+
+      // Outcome
+      var outcomes = tally('Outcome');
+      if (outcomes.length) {
+        barChart('chart-outcome', outcomes.map(function (r) { return r.label; }), outcomes.map(function (r) { return r.count; }), cssVar('--series-3'), { horizontal: true });
+      } else {
+        emptyState('chart-outcome', 'No outcome data in the last ' + WEEKS_FOR_DETAIL + ' weeks.');
+      }
+
+      // Sales channel (Shopify)
+      var channels = tally('Sales channel');
+      if (channels.length) {
+        barChart('chart-channel', channels.map(function (r) { return r.label; }), channels.map(function (r) { return r.count; }), cssVar('--series-4'), { horizontal: true });
+      } else {
+        emptyState('chart-channel', 'Empty — waiting on a run with valid Shopify credentials.');
+      }
+
+      // Shipping country (Shopify)
+      var countries = tally('Shipping country').slice(0, 8);
+      if (countries.length) {
+        barChart('chart-country', countries.map(function (r) { return r.label; }), countries.map(function (r) { return r.count; }), cssVar('--series-5'), { horizontal: true });
+      } else {
+        emptyState('chart-country', 'Empty — waiting on a run with valid Shopify credentials.');
+      }
+
+      // Customer type (new vs recurring) — two stat tiles instead of a chart
+      var custTally = tally('Customer status (current)');
+      var custWrap = document.getElementById('customer-type-wrap');
+      if (custTally.length) {
+        var totalCust = custTally.reduce(function (s, r) { return s + r.count; }, 0);
+        custWrap.innerHTML = custTally.map(function (r, i) {
+          var pct = (r.count / totalCust * 100).toFixed(0);
+          var color = i === 0 ? 'var(--series-1)' : 'var(--series-2)';
+          return '<div style="flex:1;text-align:center;padding:20px 8px;">' +
+            '<div style="font-size:28px;font-weight:600;color:' + color + ';">' + pct + '%</div>' +
+            '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + r.label + ' (' + r.count + ')</div></div>';
+        }).join('');
+        custWrap.style.display = 'flex';
+        custWrap.style.alignItems = 'center';
+      } else {
+        custWrap.innerHTML = '<div class="empty-state">Empty — waiting on a run with valid Shopify credentials.</div>';
+      }
+
+      // Days to return — bucketed histogram
+      var buckets = [[0, 10], [11, 20], [21, 30], [31, 45], [46, 60], [61, 100], [101, Infinity]];
+      var bucketLabels = ['0-10', '11-20', '21-30', '31-45', '46-60', '61-100', '100+'];
+      var bucketCounts = buckets.map(function () { return 0; });
+      var anyDays = false;
+      recent.forEach(function (r) {
+        var d = toNum(r['Days to return']);
+        if (d === null) return;
+        anyDays = true;
+        for (var i = 0; i < buckets.length; i++) {
+          if (d >= buckets[i][0] && d <= buckets[i][1]) { bucketCounts[i]++; break; }
+        }
+      });
+      if (anyDays) {
+        barChart('chart-days', bucketLabels, bucketCounts, cssVar('--series-1'));
+      } else {
+        emptyState('chart-days', 'Empty — waiting on a run with valid Shopify credentials.');
+      }
+    } else {
+      ['chart-reasons', 'chart-outcome', 'chart-channel', 'chart-country', 'chart-days'].forEach(function (id) {
+        emptyState(id, 'No data yet in "Loop returns".');
+      });
+      document.getElementById('customer-type-wrap').innerHTML = '<div class="empty-state">No data yet in "Loop returns".</div>';
+    }
+
+    // ---------- CSAT ----------
+    if (Array.isArray(tickets) && tickets.length) {
+      var t = tickets.slice(-12);
+      lineChart('chart-csat', t.map(isoWeekLabel), [
+        { data: t.map(function (r) { return toNum(r['CSAT - Return tickets (avg score)']); }), borderColor: cssVar('--series-1'), backgroundColor: cssVar('--series-1') },
+        { data: t.map(function (r) { return toNum(r['CSAT - All tickets (avg score)']); }), borderColor: cssVar('--text-muted'), backgroundColor: cssVar('--text-muted'), borderDash: [4, 3] },
+      ]);
+      var lastT = t[t.length - 1];
+      if (lastT) {
+        var v = toNum(lastT['CSAT - Return tickets (avg score)']);
+        document.getElementById('kpi-csat').textContent = v === null ? '—' : v.toFixed(2);
+        document.getElementById('kpi-csat-sub').textContent = 'week ' + lastT['ISO week'] + ' · ' + (lastT['CSAT - Return tickets (surveys scored)'] || 0) + ' surveys';
+      }
+    } else {
+      emptyState('chart-csat', 'No data yet in "Return tickets".');
+    }
+  });
+})();
+</script>
+</body>
+</html>
