@@ -825,7 +825,15 @@
       if (json.status === 'error') {
         throw new Error('gviz error for "' + sheetName + '": ' + (json.errors && json.errors[0] && json.errors[0].detailed_message));
       }
-      var cols = json.table.cols.map(function (c) { return { label: c.label || c.id, type: c.type }; });
+      // .trim() the label: Google's gviz /tq JSON endpoint sometimes appends a
+      // trailing space to every inferred column label for a given sheet (seen
+      // 2026-10-05 on "Loop returns" specifically — confirmed via the sheet's
+      // raw CSV export and via Apps Script's own getValues() that the actual
+      // header cells have no trailing space; it's purely a quirk of this JSON
+      // response format, not real sheet data). Without trimming, every
+      // obj['ISO week'] etc. lookup below comes up undefined and every row
+      // silently fails to match any week filter.
+      var cols = json.table.cols.map(function (c) { return { label: (c.label || c.id || '').trim(), type: c.type }; });
       var rows = json.table.rows.map(function (r) {
         var obj = {};
         cols.forEach(function (col, i) {
