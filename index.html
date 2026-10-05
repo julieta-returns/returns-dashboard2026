@@ -514,8 +514,8 @@
 
   <section class="grid">
     <div class="card wide">
-      <h2>Products — return reasons (all-time, not affected by the filter above)</h2>
-      <p class="desc">Pick a product on the left (grouped by product, not variant — color/size variants are combined) to see every return reason it has ever had, plus its own customer comments. This view always looks at the full history, so it's unaffected by the From/To filter above — use it to spot a product's real, overall problem rather than one noisy week.</p>
+      <h2>Products — return reasons</h2>
+      <p class="desc" id="desc-products">Pick a product on the left (grouped by product, not variant — color/size variants are combined) to see every return reason it had in the selected period, plus its own customer comments.</p>
       <div class="product-split">
         <div class="product-list-col">
           <input type="text" class="search-input" id="product-search" placeholder="Search product…">
@@ -628,11 +628,11 @@
   </details>
 
   <details class="card">
-    <summary><span class="chev">▶</span><span class="tag">All-time, not filtered</span><h2>Products panel</h2></summary>
+    <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>Products panel</h2></summary>
     <div class="details-body">
-      <p>Built for the Product team specifically. On the left is every product (variants like different colors or sizes are merged — "Ekster Cardholder Pro, Jet Black" and "..., Olive" both count under "Ekster Cardholder Pro"), sorted by how many times it's ever been returned. Click one to see, on the right: its all-time return count, average days to return, a full breakdown of every return reason it has ever had, and its customers' actual comments, most recent first.</p>
+      <p>Built for the Product team specifically. On the left is every product (variants like different colors or sizes are merged — "Ekster Cardholder Pro, Jet Black" and "..., Olive" both count under "Ekster Cardholder Pro"), sorted by how many times it was returned in the selected period. Click one to see, on the right: its return count and average days to return for that period, a full breakdown of every return reason it had, and its customers' actual comments, most recent first.</p>
       <p>Click a bar in the reasons chart to narrow the comments list to just that reason (it turns orange while selected) — click it again, or use "clear filter", to see every comment for the product again.</p>
-      <p>This panel deliberately ignores the From/To filter above it, so one unusually bad or good week doesn't distort a product's real pattern. For a specific week's or month's detail instead, use the "Return detail" table underneath it.</p>
+      <p>This panel now follows the From/To filter above it, so it always matches what the scorecards and Outcome chart are showing. For the raw row-by-row detail instead, use the "Return detail" table underneath it.</p>
     </div>
   </details>
 
@@ -1060,7 +1060,9 @@
         emptyState('chart-cohort', 'No data yet in "Return rate (cohort)" — needs a run with working Shopify credentials.');
         return;
       }
-      var c = cohort.slice().reverse(); // sheet is newest-first per the script; show oldest -> newest
+      var c = cohort.slice().sort(function (a, b) {
+        return toDate(a['Week start (Monday)']) - toDate(b['Week start (Monday)']);
+      }); // explicit oldest -> newest, left -> right, regardless of sheet row order
       var colors = c.map(function (r) {
         var base = statusColorFor(r['Cohort status']);
         var d = toDate(r['Week start (Monday)']);
@@ -1100,16 +1102,23 @@
       emptyState('chart-csat', 'No data yet in "Return tickets".');
     }
 
-    // ---------- Products panel (all-time, global — ignores the From/To filter) ----------
-    (function () {
-      var detailRows = Array.isArray(detail) ? detail : [];
-      if (!detailRows.length) {
-        document.getElementById('product-list').innerHTML = '<div class="product-row" style="cursor:default">No data yet in "Loop returns".</div>';
+    // ---------- Products panel (now scoped to the From/To filter, like the
+    // rest of "Selected period" — rebuilt by renderPeriod() below every time
+    // the filter changes) ----------
+    var globalProducts = [];
+    var selectedProduct = null;
+    var selectedReason = null;
+
+    function rebuildProductsPanel(rows) {
+      if (!rows.length) {
+        globalProducts = [];
+        document.getElementById('product-list').innerHTML = '<div class="product-row" style="cursor:default">No returns in the selected period.</div>';
+        renderProductDetail(null);
         return;
       }
 
       var byProduct = {}; // product -> { count, daysSum, daysN, reasonCounts: {}, comments: [{text, week, order}] }
-      detailRows.forEach(function (r) {
+      rows.forEach(function (r) {
         var product = productOf(r['Product title']);
         if (!byProduct[product]) byProduct[product] = { count: 0, daysSum: 0, daysN: 0, reasonCounts: {}, comments: [] };
         var p = byProduct[product];
@@ -1130,7 +1139,7 @@
         }
       });
 
-      var globalProducts = Object.keys(byProduct).map(function (name) {
+      globalProducts = Object.keys(byProduct).map(function (name) {
         var p = byProduct[name];
         var reasons = Object.keys(p.reasonCounts)
           .map(function (r) { return { label: r, count: p.reasonCounts[r] }; })
@@ -1145,35 +1154,42 @@
         };
       }).sort(function (a, b) { return b.count - a.count; });
 
-      var selectedProduct = globalProducts.length ? globalProducts[0].name : null;
-      var selectedReason = null;
+      // Keep the current selection across a filter change if that product
+      // still has returns in the new period; otherwise fall back to the
+      // top product of the new period.
+      var stillPresent = selectedProduct && globalProducts.some(function (p) { return p.name === selectedProduct; });
+      if (!stillPresent) selectedProduct = globalProducts.length ? globalProducts[0].name : null;
 
-      function renderProductList(filterText) {
-        var rows = globalProducts;
-        if (filterText) {
-          var needle = filterText.toLowerCase();
-          rows = rows.filter(function (p) { return p.name.toLowerCase().indexOf(needle) !== -1; });
-        }
-        var listEl = document.getElementById('product-list');
-        if (!rows.length) {
-          listEl.innerHTML = '<div class="product-row" style="cursor:default">No products match.</div>';
-          return;
-        }
-        listEl.innerHTML = rows.map(function (p) {
-          var activeClass = p.name === selectedProduct ? ' active' : '';
-          return '<div class="product-row' + activeClass + '" data-product="' + escapeHtml(p.name) + '">' +
-            '<span>' + escapeHtml(p.name) + '</span><span class="count">' + p.count + '</span></div>';
-        }).join('');
-        Array.prototype.forEach.call(listEl.querySelectorAll('.product-row[data-product]'), function (el) {
-          el.onclick = function () {
-            selectedProduct = el.getAttribute('data-product');
-            renderProductList(document.getElementById('product-search').value);
-            renderProductDetail(selectedProduct);
-          };
-        });
+      renderProductList(document.getElementById('product-search').value);
+      renderProductDetail(selectedProduct);
+    }
+
+    function renderProductList(filterText) {
+      var rows = globalProducts;
+      if (filterText) {
+        var needle = filterText.toLowerCase();
+        rows = rows.filter(function (p) { return p.name.toLowerCase().indexOf(needle) !== -1; });
       }
+      var listEl = document.getElementById('product-list');
+      if (!rows.length) {
+        listEl.innerHTML = '<div class="product-row" style="cursor:default">No products match.</div>';
+        return;
+      }
+      listEl.innerHTML = rows.map(function (p) {
+        var activeClass = p.name === selectedProduct ? ' active' : '';
+        return '<div class="product-row' + activeClass + '" data-product="' + escapeHtml(p.name) + '">' +
+          '<span>' + escapeHtml(p.name) + '</span><span class="count">' + p.count + '</span></div>';
+      }).join('');
+      Array.prototype.forEach.call(listEl.querySelectorAll('.product-row[data-product]'), function (el) {
+        el.onclick = function () {
+          selectedProduct = el.getAttribute('data-product');
+          renderProductList(document.getElementById('product-search').value);
+          renderProductDetail(selectedProduct);
+        };
+      });
+    }
 
-      function renderReasonsChart(p) {
+    function renderReasonsChart(p) {
         var topReasons = p.reasons.slice(0, 15);
         if (topReasons.length) {
           var colors = topReasons.map(function (r) { return r.label === selectedReason ? cssVar('--series-2') : cssVar('--series-1'); });
@@ -1243,13 +1259,11 @@
         renderProductComments(p, null);
       }
 
-      renderProductList('');
-      renderProductDetail(selectedProduct);
-      document.getElementById('product-search').oninput = function (e) { renderProductList(e.target.value); };
-    })();
+    document.getElementById('product-search').oninput = function (e) { renderProductList(e.target.value); };
 
     // ---------- Period filter + everything scoped to it ----------
     if (!Array.isArray(weekly) || !weekly.length) {
+      rebuildProductsPanel([]);
       emptyState('chart-outcome', 'No data yet in "Loop returns (weekly)".');
       return;
     }
@@ -1319,6 +1333,8 @@
       var currRows = detailRows.filter(function (r) { return inRange(r, currKeys); });
       var prevRows = hasPrev ? detailRows.filter(function (r) { return inRange(r, prevKeys); }) : [];
 
+      rebuildProductsPanel(currRows);
+
       // "Returns" KPI: the headline number is ORDERS (distinct Order name) —
       // e.g. order #123456 returning 5 products and order #145789 returning 2
       // products is 2 returns, not 7. The sub-line below it shows the total
@@ -1364,6 +1380,7 @@
       document.getElementById('kpi-csat-delta').innerHTML = deltaHtml(currCsat, prevCsat, { fmt: function (v) { return v.toFixed(2); } });
 
       document.getElementById('desc-outcome').textContent = 'Refund vs. exchange vs. store credit, ' + (n > 1 ? n + ' selected weeks' : 'selected week') + '.';
+      document.getElementById('desc-products').textContent = 'Pick a product on the left (grouped by product, not variant — color/size variants are combined) to see every return reason it had in ' + (n > 1 ? 'the ' + n + ' selected weeks' : 'the selected week') + ', plus its own customer comments.';
 
       if (!currRows.length) {
         emptyState('chart-outcome', 'No "Loop returns" detail rows in the selected period.');
