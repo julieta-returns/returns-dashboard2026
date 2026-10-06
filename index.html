@@ -568,6 +568,7 @@
 <nav class="tabnav">
   <button type="button" id="tab-btn-guide" class="guide-tab-btn" title="Guide: how to read this dashboard">❓ Guide</button>
   <button type="button" id="tab-btn-dashboard" class="active">Dashboard</button>
+  <button type="button" id="tab-btn-retention">Retention offer</button>
 </nav>
 
 <main>
@@ -588,6 +589,7 @@
         <label><input type="checkbox" class="export-check" value="cohort"> Return rate (cohort) — all weeks</label>
         <label><input type="checkbox" class="export-check" value="tickets"> Return tickets — all weeks</label>
         <label><input type="checkbox" class="export-check" value="launch"> Product launch dates — all</label>
+        <label><input type="checkbox" class="export-check" value="retention"> Retention Offer — all weeks</label>
         <button id="export-download" type="button" style="margin-top:8px;width:100%">Download CSV(s)</button>
         <div class="table-note" style="margin-top:4px">Each checked dataset downloads as its own CSV file (browser may ask to allow multiple downloads the first time).</div>
       </div>
@@ -778,6 +780,40 @@
   </div>
 </div>
 
+<div id="view-retention" style="display:none">
+  <div class="filterbar">
+    <div id="retention-compare-note"></div>
+  </div>
+  <p class="desc" style="margin:-4px 0 16px">Ticket custom field from the Gorgias helpdesk, not a Loop/Shopify return record — lives in "CS Dashboard 2026", not the restricted returns sheet. Uses the same From/To filter as the Dashboard tab.</p>
+
+  <div class="section-label">Selected period</div>
+  <section class="period-row">
+    <div class="kpi-col">
+      <div class="kpi"><div class="label">Retention offers sent<span class="info-icon" tabindex="0" data-tooltip="Tickets with any Retention Offer value other than N/A: Accepted (any reason) + Declined + Still waiting + Exchange. Tickets where the field was never set (N/A, no offer involved) are not counted here.">i</span></div><div class="value" id="kpi-retention-sent">—</div><div class="delta" id="kpi-retention-sent-delta"></div></div>
+      <div class="kpi"><div class="label">Acceptance rate<span class="info-icon" tabindex="0" data-tooltip="Accepted ÷ (Accepted + Declined) only. Excludes &quot;Still waiting&quot; (not settled yet) and &quot;Exchange&quot; (its own outcome, not clearly an accept or a decline) from both sides of the ratio, not just the top.">i</span></div><div class="value" id="kpi-retention-rate">—</div><div class="delta" id="kpi-retention-rate-delta"></div></div>
+    </div>
+    <div class="kpi-col">
+      <div class="kpi"><div class="label">Declined</div><div class="value" id="kpi-retention-declined">—</div></div>
+      <div class="kpi"><div class="label">Still waiting<span class="info-icon" tabindex="0" data-tooltip="Offer sent but not yet settled into Accepted/Declined as of the last script run. Excluded from the acceptance rate above, since it hasn't resolved either way.">i</span></div><div class="value" id="kpi-retention-waiting">—</div></div>
+      <div class="kpi"><div class="label">Exchange<span class="info-icon" tabindex="0" data-tooltip="Its own outcome, separate from Accepted/Declined — excluded from the acceptance rate above, per how Juli wants this counted (not clearly an accept or a decline).">i</span></div><div class="value" id="kpi-retention-exchange">—</div></div>
+    </div>
+    <div class="card outcome-card">
+      <h2>Accepted offers, by reason — selected period</h2>
+      <p class="desc">Only the "Accepted" slice of the KPIs above, split by what was offered. Declined / Waiting / Exchange aren't a "reason", so they're not in this chart — see the KPI tiles for those.</p>
+      <div class="chart-wrap" data-chart="chart-retention-accepted" style="height:240px"><canvas id="chart-retention-accepted"></canvas></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card wide">
+      <h2>Retention offer outcomes over time</h2>
+      <p class="desc">Share of retention-offer tickets each week by outcome, last 12 weeks — all-time trend, not scoped to the filter above (N/A/no-offer tickets excluded from the mix).</p>
+      <div class="chart-wrap" data-chart="chart-retention-trend"><canvas id="chart-retention-trend"></canvas></div>
+      <div class="legend-note" id="retention-trend-legend"></div>
+    </div>
+  </section>
+</div>
+
 <div id="view-guide" class="guide" style="display:none">
   <div class="guide-toolbar">
     <button type="button" id="guide-expand-all">Expand all</button>
@@ -812,10 +848,11 @@
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The KPI tiles</h2></summary>
     <div class="details-body">
       <ul>
-        <li><b>Return rate — selected period.</b> The return rate (returns ÷ orders) of whichever week(s) are selected in the From/To filter above, weighted by order volume across a multi-week selection — matured or not (see "includes provisional" in the sub-line when a selected week hasn't closed its 100-day window yet). Needs the Shopify enrichment data to populate. Changed 2026-10 — this used to always show the last matured cohort regardless of the filter. Hover (or tab to) the small circled "i" next to the label for why a very fresh week can show a surprisingly low number here (it hasn't had time to generate returns yet) and where to look for the projected "true" rate instead.</li>
-        <li><b>Returns.</b> The headline number is orders — one return = one order, even if that order has several products in it, so an order returning 5 products and another returning 2 counts as 2 here, not 7. The percent change vs. the prior period is underneath. The smaller line below that shows the total product-level returns instead (7, in that example) — that's the same count the Outcome chart's slices add up to, since Outcome is tallied per product/line item, not per order. That's the difference if those two numbers ever look like they "don't match": they're answering different questions on purpose. (Also on the ⓘ hover now.)</li>
+        <li><b>Return rate — selected period.</b> Return rate (returns ÷ orders) for the selected week(s), weighted by order volume — matured or not. Changed 2026-10 to follow the filter instead of always showing the last matured cohort. The small circled "i" on the label covers the provisional-vs-matured distinction in more detail; needs the Shopify enrichment data to populate.</li>
+        <li><b>Returns.</b> Headline number is orders, not products — see the "i" on the label for why the smaller sub-line can show a bigger number.</li>
         <li><b>Avg days to return.</b> Average days between delivery and the return being submitted, for the selected period. Needs the Shopify "delivered at" data, same as the cohort chart.</li>
         <li><b>CSAT — return tickets.</b> Average satisfaction score for return-related support tickets in the selected period, weighted by how many surveys were actually scored each week (a week with more responses counts for more than a week with one or two).</li>
+        <li>Every KPI tile on this page now has one of these "i" icons where the number alone could be misread — hover it (or tab to it on keyboard) for the short version; this Guide still has the longer version below for anything that needs more context than a tooltip.</li>
       </ul>
     </div>
   </details>
@@ -893,9 +930,20 @@
   </details>
 
   <details class="card">
+    <summary><span class="chev">▶</span><span class="tag">Retention offer</span><h2>Retention offer tab</h2></summary>
+    <div class="details-body">
+      <p>Comes from the "Retention Offer" tab in "CS Dashboard 2026" — a Gorgias ticket custom field, not a Loop/Shopify return record. It's a live QUERY view off the "Ticket fields" tab in that same sheet, so it updates itself automatically; nothing extra to run. Uses the same From/To filter as the Dashboard tab.</p>
+      <p>Possible values: the four "Offer Accepted - ..." reasons (Refund, Store Credit, Additional Product Sent, Discount), "Offer Declined", "Offer Sent - Waiting" (not settled yet), "Exchange", and "N/A" (ticket never got a retention-offer value at all). N/A is excluded from every KPI and chart on this tab — it's the absence of an offer, not an outcome.</p>
+      <p><b>Acceptance rate</b> = Accepted ÷ (Accepted + Declined) only. "Still waiting" and "Exchange" are excluded from both sides of that ratio, per Juli (2026-10) — Waiting hasn't resolved yet, and Exchange isn't clearly an accept or a decline. If that definition ever needs to change, it's one spot in the dashboard's source (retentionCounts) and the rate on every tile here follows.</p>
+      <p>"Retention offers sent" is everything that isn't N/A: Accepted (any reason) + Declined + Waiting + Exchange. The accepted-offers pie only shows the Accepted slice, split by reason — Declined/Waiting/Exchange aren't a "reason" so they stay off that chart, and show in the KPI tiles instead.</p>
+      <p>There's a separate Retention Offer donut on the other CS/agent-performance dashboard (the Gorgias weekly one) — that one may define acceptance rate differently; if the two ever disagree, this page's definition is the one written above, not an assumption carried over from there.</p>
+    </div>
+  </details>
+
+  <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Data</span><h2>Where the numbers come from</h2></summary>
     <div class="details-body">
-      <p>Split across two Google Sheets as of 2026-10, each with its own weekly Apps Script and its own sharing settings. "Returns Dashboard 2026" (Loop Returns + Shopify sourced, more restricted sharing) holds "Loop returns" (one row per returned line item — the rawest data), "Loop returns (weekly)" (the same data pre-aggregated per week), "Return rate (cohort)", and "Product launch dates". "CS Dashboard 2026" (Gorgias-sourced, broadly shared with the team) holds "Return tickets" — the only one of these five tabs still read from there. If a section looks empty, it's almost always that the relevant script hasn't had valid Shopify credentials yet, or hasn't run for that week yet — not a bug in this page.</p>
+      <p>Split across two Google Sheets as of 2026-10, each with its own weekly Apps Script and its own sharing settings. "Returns Dashboard 2026" (Loop Returns + Shopify sourced, more restricted sharing) holds "Loop returns" (one row per returned line item — the rawest data), "Loop returns (weekly)" (the same data pre-aggregated per week), "Return rate (cohort)", and "Product launch dates". "CS Dashboard 2026" (Gorgias-sourced, broadly shared with the team) holds "Return tickets" and "Retention Offer" — the only two of these tabs still read from there. If a section looks empty, it's almost always that the relevant script hasn't had valid Shopify credentials yet, or hasn't run for that week yet — not a bug in this page.</p>
     </div>
   </details>
 
@@ -1256,16 +1304,20 @@
   (function () {
     var btnDashboard = document.getElementById('tab-btn-dashboard');
     var btnGuide = document.getElementById('tab-btn-guide');
+    var btnRetention = document.getElementById('tab-btn-retention');
     var viewDashboard = document.getElementById('view-dashboard');
     var viewGuide = document.getElementById('view-guide');
+    var viewRetention = document.getElementById('view-retention');
     function show(view) {
-      var isDashboard = view === 'dashboard';
-      viewDashboard.style.display = isDashboard ? '' : 'none';
-      viewGuide.style.display = isDashboard ? 'none' : '';
-      btnDashboard.classList.toggle('active', isDashboard);
-      btnGuide.classList.toggle('active', !isDashboard);
+      viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
+      viewRetention.style.display = view === 'retention' ? '' : 'none';
+      viewGuide.style.display = view === 'guide' ? '' : 'none';
+      btnDashboard.classList.toggle('active', view === 'dashboard');
+      btnRetention.classList.toggle('active', view === 'retention');
+      btnGuide.classList.toggle('active', view === 'guide');
     }
     btnDashboard.onclick = function () { show('dashboard'); };
+    btnRetention.onclick = function () { show('retention'); };
     btnGuide.onclick = function () { show('guide'); };
 
     var expandAllBtn = document.getElementById('guide-expand-all');
@@ -1392,8 +1444,9 @@
     fetchTab('Loop returns').catch(function (e) { return { err: e }; }),
     fetchTab('Return tickets').catch(function (e) { return { err: e }; }),
     fetchTab('Product launch dates').catch(function (e) { return { err: e }; }),
+    fetchTab('Retention Offer').catch(function (e) { return { err: e }; }),
   ]).then(function (results) {
-    var weekly = results[0], cohort = results[1], detail = results[2], tickets = results[3], launchDates = results[4];
+    var weekly = results[0], cohort = results[1], detail = results[2], tickets = results[3], launchDates = results[4], retention = results[5];
 
     var anyOk = [weekly, cohort, detail, tickets].some(function (r) { return Array.isArray(r); });
     if (!anyOk) {
@@ -1571,6 +1624,100 @@
 
       document.getElementById('outcome-trend-legend').innerHTML = allOutcomes.map(function (o, i) {
         return '<span><span class="dot" style="background:' + colors[i % colors.length] + '"></span>' + escapeHtml(o) + '</span>';
+      }).join('');
+    })();
+
+    // ---------- Retention Offer (from "CS Dashboard 2026" — Gorgias ticket
+    // custom field, not a Loop/Shopify return record). "N/A" (ticket had no
+    // retention-offer field set at all) is excluded everywhere below — it's
+    // not an offer outcome, it's the absence of one. Acceptance rate =
+    // Accepted ÷ (Accepted + Declined) only, per Juli 2026-10 — "Waiting"
+    // (not settled yet) and "Exchange" (its own outcome, not clearly
+    // accepted or declined) are both excluded from that ratio on purpose. ----------
+    var retentionHasData = Array.isArray(retention) && retention.length;
+    var RETENTION_VALUES_ACCEPTED = [
+      'Offer Accepted - Refund', 'Offer Accepted - Store Credit',
+      'Offer Accepted - Additional Product Sent', 'Offer Accepted - Discount',
+    ];
+    var RETENTION_VALUE_DECLINED = 'Offer Declined';
+    var RETENTION_VALUE_WAITING = 'Offer Sent - Waiting';
+    var RETENTION_VALUE_EXCHANGE = 'Exchange';
+    function retentionShortLabel(v) {
+      if (v.indexOf('Offer Accepted - ') === 0) return v.slice('Offer Accepted - '.length);
+      if (v === RETENTION_VALUE_DECLINED) return 'Declined';
+      if (v === RETENTION_VALUE_WAITING) return 'Waiting';
+      return v;
+    }
+    function retentionCounts(rows) {
+      var sums = {};
+      rows.forEach(function (r) {
+        var v = r['Value'] ? String(r['Value']) : null;
+        if (!v || v === 'N/A') return;
+        sums[v] = (sums[v] || 0) + (toNum(r['Tickets']) || 0);
+      });
+      var accepted = RETENTION_VALUES_ACCEPTED.reduce(function (s, v) { return s + (sums[v] || 0); }, 0);
+      var declined = sums[RETENTION_VALUE_DECLINED] || 0;
+      var waiting = sums[RETENTION_VALUE_WAITING] || 0;
+      var exchange = sums[RETENTION_VALUE_EXCHANGE] || 0;
+      return {
+        sums: sums, accepted: accepted, declined: declined, waiting: waiting, exchange: exchange,
+        sent: accepted + declined + waiting + exchange,
+        rate: (accepted + declined) > 0 ? (accepted / (accepted + declined)) * 100 : null,
+      };
+    }
+
+    // All-time trend (last 12 weeks), same convention as "Outcome mix over
+    // time" above — not scoped to the From/To filter, just the longer story.
+    (function renderRetentionTrendChart() {
+      if (!retentionHasData) {
+        emptyState('chart-retention-trend', 'No data yet in "Retention Offer".');
+        return;
+      }
+      var byWeek = {};
+      retention.forEach(function (r) {
+        var d = toDate(r['Week start (Monday)']);
+        if (!d) return;
+        var v = r['Value'] ? String(r['Value']) : null;
+        if (!v || v === 'N/A') return;
+        var key = d.getTime();
+        var n = toNum(r['Tickets']) || 0;
+        if (!byWeek[key]) byWeek[key] = { 'ISO week': r['ISO week'], weekStart: d, counts: {}, total: 0 };
+        byWeek[key].counts[v] = (byWeek[key].counts[v] || 0) + n;
+        byWeek[key].total += n;
+      });
+      var weeks = Object.keys(byWeek).map(function (k) { return byWeek[k]; })
+        .sort(function (a, b) { return a.weekStart - b.weekStart; })
+        .slice(-12);
+      if (!weeks.length) {
+        emptyState('chart-retention-trend', 'No retention-offer tickets yet (excluding N/A).');
+        return;
+      }
+
+      var valueOrder = RETENTION_VALUES_ACCEPTED.concat([RETENTION_VALUE_DECLINED, RETENTION_VALUE_WAITING, RETENTION_VALUE_EXCHANGE])
+        .filter(function (v) { return weeks.some(function (w) { return w.counts[v]; }); });
+      var colors = [cssVar('--series-1'), cssVar('--series-2'), cssVar('--series-3'), cssVar('--series-4'), cssVar('--series-5'), cssVar('--text-muted'), cssVar('--series-1')];
+      var datasets = valueOrder.map(function (value, i) {
+        return {
+          label: retentionShortLabel(value),
+          data: weeks.map(function (w) { return w.total ? Math.round((w.counts[value] || 0) / w.total * 1000) / 10 : 0; }),
+          backgroundColor: colors[i % colors.length],
+          borderRadius: 2,
+        };
+      });
+
+      stackedBarChart('chart-retention-trend', weeks.map(isoWeekLabel), datasets, {
+        tooltip: {
+          label: function (ctx) {
+            var w = weeks[ctx.dataIndex];
+            var value = valueOrder[ctx.datasetIndex];
+            var n = w.counts[value] || 0;
+            return retentionShortLabel(value) + ': ' + ctx.raw + '% (' + n + ' ticket' + (n === 1 ? '' : 's') + ')';
+          },
+        },
+      });
+
+      document.getElementById('retention-trend-legend').innerHTML = valueOrder.map(function (v, i) {
+        return '<span><span class="dot" style="background:' + colors[i % colors.length] + '"></span>' + escapeHtml(retentionShortLabel(v)) + '</span>';
       }).join('');
     })();
 
@@ -1975,6 +2122,45 @@
       document.getElementById('kpi-csat').textContent = currCsat === null ? '—' : currCsat.toFixed(2);
       document.getElementById('kpi-csat-delta').innerHTML = deltaHtml(currCsat, prevCsat, { fmt: function (v) { return v.toFixed(2); } });
 
+      // ---- Retention Offer, selected period (from "CS Dashboard 2026",
+      // separate sheet — not a Loop/Shopify return, see the note above
+      // renderRetentionTrendChart for the formula and what's excluded) ----
+      document.getElementById('retention-compare-note').textContent = document.getElementById('compare-note').textContent;
+      (function renderRetentionSelectedPeriod() {
+        function rowsForKeys(keys) {
+          return (Array.isArray(retention) ? retention : []).filter(function (r) {
+            var d = toDate(r['Week start (Monday)']);
+            return d && keys[d.getTime()];
+          });
+        }
+        var currRetention = retentionCounts(rowsForKeys(currKeys));
+        var prevRetention = hasPrev ? retentionCounts(rowsForKeys(prevKeys)) : null;
+
+        document.getElementById('kpi-retention-sent').textContent = retentionHasData ? currRetention.sent : '—';
+        document.getElementById('kpi-retention-sent-delta').innerHTML = (retentionHasData && hasPrev)
+          ? deltaHtml(currRetention.sent, prevRetention.sent, { fmt: function (v) { return v; } })
+          : '<span style="color:var(--text-muted)">no prior period to compare</span>';
+
+        document.getElementById('kpi-retention-rate').textContent = currRetention.rate === null ? '—' : currRetention.rate.toFixed(0) + '%';
+        document.getElementById('kpi-retention-rate-delta').innerHTML = (hasPrev && prevRetention.rate !== null)
+          ? deltaHtml(currRetention.rate, prevRetention.rate, { fmt: function (v) { return v.toFixed(0) + '%'; } })
+          : '<span style="color:var(--text-muted)">no prior period to compare</span>';
+
+        document.getElementById('kpi-retention-declined').textContent = retentionHasData ? currRetention.declined : '—';
+        document.getElementById('kpi-retention-waiting').textContent = retentionHasData ? currRetention.waiting : '—';
+        document.getElementById('kpi-retention-exchange').textContent = retentionHasData ? currRetention.exchange : '—';
+
+        if (currRetention.accepted > 0) {
+          var acceptedLabels = RETENTION_VALUES_ACCEPTED.filter(function (v) { return currRetention.sums[v]; });
+          var pieColors = [cssVar('--series-1'), cssVar('--series-2'), cssVar('--series-3'), cssVar('--series-4')];
+          pieChart('chart-retention-accepted', acceptedLabels.map(retentionShortLabel), acceptedLabels.map(function (v) { return currRetention.sums[v]; }), acceptedLabels.map(function (v, i) { return pieColors[i % pieColors.length]; }), {
+            tooltipLabel: function (ctx) { return ctx.label + ': ' + ctx.raw + ' ticket' + (ctx.raw === 1 ? '' : 's'); },
+          });
+        } else {
+          emptyState('chart-retention-accepted', retentionHasData ? 'No accepted offers in the selected period.' : 'No data yet in "Retention Offer".');
+        }
+      })();
+
       // ---- Value retained vs. returned (CEO-level read on Outcome) ----
       // "Total return value" (Loop's `total`) is the value of the returned
       // item(s) regardless of outcome; "Total refund amount" is cash actually
@@ -2236,6 +2422,7 @@
           case 'cohort': return { filename: 'return-rate-cohort.csv', rows: Array.isArray(cohort) ? cohort : [] };
           case 'tickets': return { filename: 'return-tickets.csv', rows: Array.isArray(tickets) ? tickets : [] };
           case 'launch': return { filename: 'product-launch-dates.csv', rows: Array.isArray(launchDates) ? launchDates : [] };
+          case 'retention': return { filename: 'retention-offer.csv', rows: Array.isArray(retention) ? retention : [] };
         }
       }
 
