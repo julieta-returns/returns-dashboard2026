@@ -1553,6 +1553,16 @@
     function selectedRange() {
       var a = Number(fromSel.value), b = Number(toSel.value);
       var lo = Math.min(a, b), hi = Math.max(a, b);
+      // If From/To were picked backwards (From later than To), the range
+      // itself is still computed correctly below — but also snap the two
+      // dropdowns to show it in the right order, so the UI never displays a
+      // confusing reversed pair (e.g. "From: Week 27 ... To: Week 24") while
+      // silently using 24-27 underneath. Found 2026-10-05: Juli picked From
+      // after To and the note below correctly said "weeks 24-27", but the
+      // selects themselves still showed 27/24 — looked like a bug even
+      // though the math was right.
+      if (a !== lo) fromSel.value = String(lo);
+      if (b !== hi) toSel.value = String(hi);
       return { lo: lo, hi: hi, weeks: weeksMeta.slice(lo, hi + 1) };
     }
 
