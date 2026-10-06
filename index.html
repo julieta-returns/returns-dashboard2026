@@ -559,6 +559,18 @@
       <div class="table-note" id="outcome-retained"></div>
     </div>
   </section>
+
+  <section class="grid">
+    <div class="card wide">
+      <h2>Return reserve estimate</h2>
+      <p class="desc" id="desc-reserve">Orders from cohorts still inside the 100-day return window haven't finished generating returns yet. This projects how many more are likely, using the average return rate of recently matured cohorts, and turns that into an estimated $ still to be refunded — useful for finance to avoid under-reserving.</p>
+      <div class="kpi" style="max-width:420px">
+        <div class="label">Estimated additional returns, unmatured cohorts</div>
+        <div class="value" id="kpi-reserve-returns">—</div>
+        <div class="sub" id="kpi-reserve-detail"></div>
+      </div>
+    </div>
+  </section>
   </div>
 
   <div class="subtab-panel" id="subtab-products">
@@ -614,13 +626,10 @@
     </div>
 
     <div class="card wide">
-      <h2>Return reserve estimate</h2>
-      <p class="desc" id="desc-reserve">Orders from cohorts still inside the 100-day return window haven't finished generating returns yet. This projects how many more are likely, using the average return rate of recently matured cohorts, and turns that into an estimated $ still to be refunded — useful for finance to avoid under-reserving.</p>
-      <div class="kpi" style="max-width:420px">
-        <div class="label">Estimated additional returns, unmatured cohorts</div>
-        <div class="value" id="kpi-reserve-returns">—</div>
-        <div class="sub" id="kpi-reserve-detail"></div>
-      </div>
+      <h2>Late-delivery returns by carrier</h2>
+      <p class="desc" id="desc-carrier-late">Same carrier breakdown, but narrowed to returns whose reason is "Order wasn't delivered on time" — the one that actually points at the carrier itself rather than the product. This is a small-numbers chart (this reason is rare overall), so treat one or two returns concentrating on a single carrier as a lead to look into, not a statistically solid pattern on its own.</p>
+      <div class="chart-wrap" data-chart="chart-carrier-late"><canvas id="chart-carrier-late"></canvas></div>
+      <div class="table-note" id="carrier-late-note"></div>
     </div>
   </section>
   </div>
@@ -697,14 +706,14 @@
   <details class="card" open>
     <summary><span class="chev">▶</span><span class="tag">Overview</span><h2>What this dashboard is</h2></summary>
     <div class="details-body">
-      <p>This page reads live data straight from the "CS Dashboard 2026" Google Sheet every time it's opened — nothing is cached, so reloading shows whatever is in the sheet right now. There are two kinds of sections: "Selected period" (the KPI tiles, Outcome, Products panel, Return detail, carrier chart and reserve estimate), which all respond to the From/To filter near the top, and "Trends", which always shows the full history regardless of that filter.</p>
+      <p>This page reads live data straight from the "CS Dashboard 2026" and "Returns Dashboard 2026" Google Sheets every time it's opened — nothing is cached, so reloading shows whatever is in the sheets right now. There are two kinds of sections: "Selected period" (the KPI tiles, Outcome, Products panel, Return detail, the two carrier charts and the reserve estimate), which all respond to the From/To filter near the top, and "Trends", which always shows the full history regardless of that filter.</p>
     </div>
   </details>
 
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Filter bar</span><h2>From / To week filter</h2></summary>
     <div class="details-body">
-      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the KPI tiles, "Outcome", the Products panel, the "Return detail" table, returns by carrier, and the reserve estimate) recalculates for exactly that range.</p>
+      <p>Pick a From week and a To week to define the period you want to look at — a single week or a longer stretch. Everything under "Selected period" (the KPI tiles, "Outcome", the Products panel, the "Return detail" table, both returns-by-carrier charts, and the reserve estimate) recalculates for exactly that range.</p>
       <p>Whatever range you pick, it's automatically compared against the immediately preceding period of the same length — 1 week vs. the prior week, 4 weeks vs. the 4 weeks before that. The note under the filter bar spells out exactly which weeks are being compared. "Reset" jumps back to just the most recent week.</p>
       <p>It also carries through to the "Trends" charts below (returns/value per week, return rate by cohort): the weeks inside your selected range are shown at full color there, everything else dimmed, so you can see where the period you're looking at sits inside the longer trend.</p>
     </div>
@@ -753,6 +762,7 @@
       <p>Counts returns by the shipping carrier that delivered the order, pulled from Shopify's own tracking info on the fulfillment. Added 2026-10-05 specifically to give the GOFO carrier investigation hard numbers instead of anecdotes from individual tickets.</p>
       <p>This is a COUNT, not a rate — it doesn't yet know how many orders each carrier shipped in total, only how many of its deliveries came back. A carrier that ships more volume will naturally show more returns here even if its return RATE is normal; treat this as a starting point for the conversation, not a finished verdict on any one carrier.</p>
       <p>Only populates going forward, or for a week re-synced after 2026-10-05 (running "backfillLoopReturnComments" once re-syncs every historical week and fills this in for all of them).</p>
+      <p>Added 2026-10: a second chart right below it narrows the same carrier breakdown to only returns whose reason is "Order wasn't delivered on time" — the one reason that's genuinely about the carrier, not the product. It's a small-numbers chart since that reason is rare; an empty result there is normal, not a sign something's broken.</p>
     </div>
   </details>
 
@@ -1856,6 +1866,37 @@
         document.getElementById('carrier-note').textContent = noCarrier > 0
           ? noCarrier + ' of ' + currRows.length + ' return line item(s) this period had no carrier on file (order lookup failed, or no tracking info in Shopify).'
           : '';
+      })();
+
+      // ---- Late-delivery returns by carrier (selected period) ----
+      // Added 2026-10 per Juli: the plain carrier chart above doesn't say much
+      // on its own (it's just "which carrier ships us the most volume"). This
+      // narrows to the one reason that's actually about the carrier's own
+      // performance rather than the product — "Order wasn't delivered on
+      // time" — so a cluster on one carrier here is a real signal, not noise
+      // from unrelated return reasons.
+      (function renderLateDeliveryCarrierChart() {
+        var LATE_REASON = "Order wasn't delivered on time";
+        var lateRows = currRows.filter(function (r) { return r['Return reason'] === LATE_REASON; });
+        var byCarrier = {};
+        lateRows.forEach(function (r) {
+          var carrier = r['Carrier (shipping)'] || '(no carrier on file)';
+          byCarrier[carrier] = (byCarrier[carrier] || 0) + 1;
+        });
+        var carriers = Object.keys(byCarrier).map(function (k) { return { label: k, count: byCarrier[k] }; })
+          .sort(function (a, b) { return b.count - a.count; });
+        if (!carriers.length) {
+          emptyState('chart-carrier-late', 'No "' + LATE_REASON + '" returns in the selected period — this reason is rare, so an empty chart here is normal, not a bug.');
+          document.getElementById('carrier-late-note').textContent = '';
+          return;
+        }
+        barChart('chart-carrier-late', carriers.map(function (c) { return c.label; }), carriers.map(function (c) { return c.count; }), cssVar('--series-4'), {
+          horizontal: true,
+          tooltip: { label: function (ctx) { return carriers[ctx.dataIndex].count + ' return' + (carriers[ctx.dataIndex].count === 1 ? '' : 's'); } },
+        });
+        var total = carriers.reduce(function (s, c) { return s + c.count; }, 0);
+        document.getElementById('carrier-late-note').textContent =
+          total + ' "' + LATE_REASON + '" return' + (total === 1 ? '' : 's') + ' in this period, out of ' + currRows.length + ' total.';
       })();
 
       // ---- Return reserve estimate (selected period's still-provisional cohorts) ----
