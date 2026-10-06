@@ -508,7 +508,7 @@
     <div class="card outcome-card">
       <h2>Outcome</h2>
       <p class="desc" id="desc-outcome">Refund vs. exchange vs. store credit, selected period — one return LINE ITEM per slice-count, so this sums to the "Returns" tile's total product returns, not its order count. Hover a slice for its return value.</p>
-      <div class="chart-wrap" style="height:240px"><canvas id="chart-outcome"></canvas></div>
+      <div class="chart-wrap" data-chart="chart-outcome" style="height:240px"><canvas id="chart-outcome"></canvas></div>
       <div class="table-note" id="outcome-retained"></div>
     </div>
   </section>
@@ -530,9 +530,9 @@
               <div><b id="product-detail-days">—</b>avg days to return</div>
             </div>
           </div>
-          <div class="chart-wrap" style="height:220px"><canvas id="chart-product-reasons"></canvas></div>
+          <div class="chart-wrap" data-chart="chart-product-reasons" style="height:220px"><canvas id="chart-product-reasons"></canvas></div>
           <p class="desc" id="desc-days-histogram" style="margin-top:14px">When returns for this product actually happen, days after delivery — a cluster in the first few days points to a defect/packaging/sizing issue; a spread out further points more to buyer's remorse.</p>
-          <div class="chart-wrap" style="height:160px"><canvas id="chart-product-days"></canvas></div>
+          <div class="chart-wrap" data-chart="chart-product-days" style="height:160px"><canvas id="chart-product-days"></canvas></div>
           <p class="table-note" id="product-comments-label" style="margin:10px 0 6px">Click a reason bar above to see only the comments for that reason. All comments for this product, most recent first, capped at 50:</p>
           <div class="comments-list" id="product-comments"></div>
         </div>
@@ -558,7 +558,7 @@
     <div class="card wide">
       <h2>Returns by carrier</h2>
       <p class="desc" id="desc-carrier">Return COUNT by the carrier that delivered the order (from Shopify's tracking info) — not a rate, since this doesn't yet divide by how many orders each carrier shipped overall. Useful for spotting whether one carrier's deliveries are disproportionately showing up here, as a starting point for a conversation with that carrier.</p>
-      <div class="chart-wrap"><canvas id="chart-carrier"></canvas></div>
+      <div class="chart-wrap" data-chart="chart-carrier"><canvas id="chart-carrier"></canvas></div>
       <div class="table-note" id="carrier-note"></div>
     </div>
 
@@ -578,7 +578,7 @@
     <div class="card wide">
       <h2>Return rate by purchase cohort</h2>
       <p class="desc">% of orders from each delivery week that eventually come back — not the same as "returns processed that week." Provisional cohorts are still inside Ekster's 100-day return window.</p>
-      <div class="chart-wrap"><canvas id="chart-cohort"></canvas></div>
+      <div class="chart-wrap" data-chart="chart-cohort"><canvas id="chart-cohort"></canvas></div>
       <div class="legend-note">
         <span><span class="dot" style="background:var(--series-1)"></span>Matured (final)</span>
         <span><span class="dot" style="background:var(--text-muted)"></span>Provisional (still in window)</span>
@@ -588,19 +588,19 @@
     <div class="card">
       <h2>Returns per week</h2>
       <p class="desc">Count of Loop returns submitted that week (Loop returns weekly).</p>
-      <div class="chart-wrap"><canvas id="chart-volume"></canvas></div>
+      <div class="chart-wrap" data-chart="chart-volume"><canvas id="chart-volume"></canvas></div>
     </div>
 
     <div class="card">
       <h2>Return value per week</h2>
       <p class="desc">Total refund amount of returns submitted that week.</p>
-      <div class="chart-wrap"><canvas id="chart-value"></canvas></div>
+      <div class="chart-wrap" data-chart="chart-value"><canvas id="chart-value"></canvas></div>
     </div>
 
     <div class="card wide">
       <h2>CSAT — return tickets vs. all tickets</h2>
       <p class="desc">Average satisfaction survey score by week.</p>
-      <div class="chart-wrap"><canvas id="chart-csat"></canvas></div>
+      <div class="chart-wrap" data-chart="chart-csat"><canvas id="chart-csat"></canvas></div>
       <div class="legend-note">
         <span><span class="dot" style="background:var(--series-1)"></span>Return tickets</span>
         <span><span class="dot" style="background:var(--text-muted)"></span>All tickets</span>
@@ -610,7 +610,7 @@
     <div class="card wide">
       <h2>Outcome mix over time</h2>
       <p class="desc">Refund vs. exchange vs. store credit as a share of returns each week, last 12 weeks — a rising refund share means more cash is leaving instead of staying in the business as credit or exchange.</p>
-      <div class="chart-wrap"><canvas id="chart-outcome-trend"></canvas></div>
+      <div class="chart-wrap" data-chart="chart-outcome-trend"><canvas id="chart-outcome-trend"></canvas></div>
       <div class="legend-note" id="outcome-trend-legend"></div>
     </div>
   </section>
@@ -851,9 +851,24 @@
     el.innerHTML = '<div class="notice show"><b>Can\'t read the sheet yet.</b> ' + message + '</div>';
   }
 
+  // Every chart lives in a ".chart-wrap" div that's tagged with
+  // data-chart="<canvasId>" (see the static HTML). We always look the wrap
+  // up through that stable attribute, never by walking up from the canvas
+  // element itself — because emptyState() below replaces the canvas with a
+  // plain <div>, and once that's happened document.getElementById(canvasId)
+  // returns null forever after. Before this helper existed, a SECOND call to
+  // emptyState() (or a later barChart/pieChart/etc. redraw) on an
+  // already-emptied chart would either throw (reading .closest on null) or
+  // silently no-op — in both cases the chart got stuck showing stale data
+  // from whatever was last rendered there, with no further updates. Found
+  // 2026-10-05 while chasing a stale Outcome-chart report from Juli.
+  function getChartWrap(canvasId) {
+    return document.querySelector('.chart-wrap[data-chart="' + canvasId + '"]');
+  }
+
   function emptyState(canvasId, message) {
-    var canvas = document.getElementById(canvasId);
-    var wrap = canvas.closest('.chart-wrap');
+    var wrap = getChartWrap(canvasId);
+    if (!wrap) { console.warn('emptyState: no chart-wrap found for', canvasId); return; }
     wrap.innerHTML = '<div class="empty-state">' + message + '</div>';
   }
 
@@ -893,9 +908,8 @@
   }
 
   function resetChartWrap(canvasId) {
-    var old = document.getElementById(canvasId);
-    if (!old) return null;
-    var wrap = old.closest('.chart-wrap');
+    var wrap = getChartWrap(canvasId);
+    if (!wrap) { console.warn('resetChartWrap: no chart-wrap found for', canvasId); return null; }
     wrap.innerHTML = '<canvas id="' + canvasId + '"></canvas>';
     return document.getElementById(canvasId);
   }
