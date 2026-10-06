@@ -223,7 +223,7 @@
     left: 50%;
     transform: translateX(-50%);
     width: max-content;
-    max-width: 270px;
+    max-width: min(270px, 78vw);
     white-space: normal;
     background: #1f2430;
     color: #fff;
@@ -550,6 +550,28 @@
   }
   .back-to-top.show { display: flex; }
   .back-to-top:hover { color: var(--text-primary); }
+
+  /* ---- Mobile (added 2026-10 per Juli) ---- */
+  @media (max-width: 640px) {
+    header { padding: 16px 64px 12px 16px; } /* right padding clears the theme toggle so the subtitle text never runs under it */
+    header h1 { font-size: 17px; }
+    header p { font-size: 12px; }
+    .theme-toggle { top: 16px; right: 16px; width: 30px; height: 30px; font-size: 14px; }
+    #banner, main { padding-left: 16px; padding-right: 16px; }
+    .tabnav, .subtabnav {
+      padding-left: 16px; padding-right: 16px;
+      flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .subtabnav button { padding: 9px 9px; font-size: 12.5px; }
+    .filterbar { padding: 10px; gap: 8px; }
+    .filterbar label { margin-right: 2px; }
+    .filterbar select { padding: 5px 6px; font-size: 12.5px; }
+    .export-panel { width: calc(100vw - 32px); max-width: 300px; }
+    .kpi .value { font-size: 22px; }
+    .card { padding: 14px; }
+    .back-to-top { right: 14px; bottom: 14px; width: 38px; height: 38px; }
+    table.data-table { font-size: 12.5px; }
+  }
 </style>
 </head>
 <body>
@@ -568,7 +590,6 @@
 <nav class="tabnav">
   <button type="button" id="tab-btn-guide" class="guide-tab-btn" title="Guide: how to read this dashboard">❓ Guide</button>
   <button type="button" id="tab-btn-dashboard" class="active">Dashboard</button>
-  <button type="button" id="tab-btn-retention">Retention offer</button>
 </nav>
 
 <main>
@@ -607,6 +628,7 @@
     <button type="button" id="subtab-btn-products">Products</button>
     <button type="button" id="subtab-btn-trends">Trends</button>
     <button type="button" id="subtab-btn-newproducts">New products</button>
+    <button type="button" id="subtab-btn-retention">Retention offer</button>
     <button type="button" id="subtab-btn-carrier">Carrier</button>
   </nav>
 
@@ -637,19 +659,24 @@
   </section>
 
   <section class="grid">
-    <div class="card wide">
-      <h2>Return reserve estimate</h2>
+    <div class="card">
+      <h2>Return reserve estimate <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(projection)</span></h2>
       <p class="desc" id="desc-reserve">Orders from cohorts still inside the 100-day return window haven't finished generating returns yet. This projects how many more are likely, using the average return rate of recently matured cohorts, and turns that into an estimated $ still to be refunded — useful for finance to avoid under-reserving.</p>
-      <div class="kpi-col" style="flex-direction:row;gap:24px;flex-wrap:wrap">
-        <div class="kpi" style="max-width:420px">
-          <div class="label">Estimated additional returns, unmatured cohorts<span class="info-icon" tabindex="0" data-tooltip="A projection, not something that already happened: orders from cohorts still inside the 100-day return window haven't finished generating returns yet, so this estimates how many more are likely using the average return rate of recently matured cohorts.">i</span></div>
+      <div class="kpi-col">
+        <div class="kpi">
+          <div class="label">Estimated additional returns, unmatured cohorts</div>
           <div class="value" id="kpi-reserve-returns">—</div>
           <div class="sub" id="kpi-reserve-detail"></div>
         </div>
-        <div class="kpi" style="max-width:260px">
-          <div class="label">Already refunded, selected period<span class="info-icon" tabindex="0" data-tooltip="Same period as the KPI tiles above. Not a projection, this already happened, unlike the tile next to it.">i</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Already refunded <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(actual, not a projection)</span></h2>
+      <p class="desc">Same period as the KPI tiles above — shown next to the reserve estimate for context, but this already happened, it isn't part of that projection.</p>
+      <div class="kpi-col">
+        <div class="kpi">
+          <div class="label">Already refunded, selected period</div>
           <div class="value" id="kpi-reserve-refunded">—</div>
-          <div class="sub">same period as the KPI tiles above, not projected — this already happened</div>
         </div>
       </div>
     </div>
@@ -778,14 +805,9 @@
     </div>
   </section>
   </div>
-</div>
 
-<div id="view-retention" style="display:none">
-  <div class="filterbar">
-    <div id="retention-compare-note"></div>
-  </div>
-  <p class="desc" style="margin:-4px 0 16px">Ticket custom field from the Gorgias helpdesk, not a Loop/Shopify return record — lives in "CS Dashboard 2026", not the restricted returns sheet. Uses the same From/To filter as the Dashboard tab.</p>
-
+  <div class="subtab-panel" id="subtab-retention">
+  <p class="desc" style="margin:0 0 16px">Ticket custom field from the Gorgias helpdesk, not a Loop/Shopify return record — lives in "CS Dashboard 2026", not the restricted returns sheet. Scoped to the same From/To filter as the rest of this Dashboard tab.</p>
   <div class="section-label">Selected period</div>
   <section class="period-row">
     <div class="kpi-col">
@@ -793,13 +815,13 @@
       <div class="kpi"><div class="label">Acceptance rate<span class="info-icon" tabindex="0" data-tooltip="Accepted ÷ (Accepted + Declined) only. Excludes &quot;Still waiting&quot; (not settled yet) and &quot;Exchange&quot; (its own outcome, not clearly an accept or a decline) from both sides of the ratio, not just the top.">i</span></div><div class="value" id="kpi-retention-rate">—</div><div class="delta" id="kpi-retention-rate-delta"></div></div>
     </div>
     <div class="kpi-col">
-      <div class="kpi"><div class="label">Declined</div><div class="value" id="kpi-retention-declined">—</div></div>
-      <div class="kpi"><div class="label">Still waiting<span class="info-icon" tabindex="0" data-tooltip="Offer sent but not yet settled into Accepted/Declined as of the last script run. Excluded from the acceptance rate above, since it hasn't resolved either way.">i</span></div><div class="value" id="kpi-retention-waiting">—</div></div>
-      <div class="kpi"><div class="label">Exchange<span class="info-icon" tabindex="0" data-tooltip="Its own outcome, separate from Accepted/Declined — excluded from the acceptance rate above, per how Juli wants this counted (not clearly an accept or a decline).">i</span></div><div class="value" id="kpi-retention-exchange">—</div></div>
+      <div class="kpi"><div class="label">Declined</div><div class="value" id="kpi-retention-declined">—</div><div class="sub" id="kpi-retention-declined-pct"></div></div>
+      <div class="kpi"><div class="label">Still waiting<span class="info-icon" tabindex="0" data-tooltip="Offer sent but not yet settled into Accepted/Declined as of the last script run. Excluded from the acceptance rate above, since it hasn't resolved either way.">i</span></div><div class="value" id="kpi-retention-waiting">—</div><div class="sub" id="kpi-retention-waiting-pct"></div></div>
+      <div class="kpi"><div class="label">Exchange<span class="info-icon" tabindex="0" data-tooltip="Its own outcome, separate from Accepted/Declined — excluded from the acceptance rate above, per how Juli wants this counted (not clearly an accept or a decline).">i</span></div><div class="value" id="kpi-retention-exchange">—</div><div class="sub" id="kpi-retention-exchange-pct"></div></div>
     </div>
     <div class="card outcome-card">
       <h2>Accepted offers, by reason — selected period</h2>
-      <p class="desc">Only the "Accepted" slice of the KPIs above, split by what was offered. Declined / Waiting / Exchange aren't a "reason", so they're not in this chart — see the KPI tiles for those.</p>
+      <p class="desc">Only the "Accepted" slice of the KPIs above, split by what was offered. Declined / Waiting / Exchange aren't a "reason", so they're not in this chart — see the KPI tiles for those. No $ value here — Gorgias's Retention Offer field records a reason, not an amount; see the Guide for why that can't be crossed with the refund data yet.</p>
       <div class="chart-wrap" data-chart="chart-retention-accepted" style="height:240px"><canvas id="chart-retention-accepted"></canvas></div>
     </div>
   </section>
@@ -812,6 +834,7 @@
       <div class="legend-note" id="retention-trend-legend"></div>
     </div>
   </section>
+  </div>
 </div>
 
 <div id="view-guide" class="guide" style="display:none">
@@ -897,7 +920,7 @@
     <div class="details-body">
       <p>For the cohort weeks in your selected period that are still "Provisional" (inside Ekster's 100-day return window), this projects how many more returns are likely before that window closes, and what that's likely to cost in refunds. The projection applies the average return rate of the last several already-"Matured" cohorts to the provisional cohort's order count, then subtracts what's already come back — the rest is the projected remainder. The $ estimate multiplies that by the average refund-per-return seen in the selected period.</p>
       <p>This is a projection, not a committed number — treat it as finance's starting point for a refund reserve, not a guarantee. If every cohort in the selected period has already matured, there's nothing left to project and the tile says so.</p>
-      <p>Added 2026-10: the "Already refunded, selected period" tile next to it is NOT a projection — it's the actual $ already refunded in the selected period (same figure behind the Outcome chart's retained-value line), placed here so you have "already paid out" and "still likely coming" side by side.</p>
+      <p>The "Already refunded" card next to it is NOT part of this projection — it's the actual $ already refunded in the selected period (same figure behind the Outcome chart's retained-value line). Split into its own card 2026-10 after this read confusingly as one number when it's really two different things, a projection and an actual — placed side by side on purpose so you have "already paid out" and "still likely coming" in the same glance, but they're not the same card anymore for a reason.</p>
     </div>
   </details>
 
@@ -936,6 +959,8 @@
       <p>Possible values: the four "Offer Accepted - ..." reasons (Refund, Store Credit, Additional Product Sent, Discount), "Offer Declined", "Offer Sent - Waiting" (not settled yet), "Exchange", and "N/A" (ticket never got a retention-offer value at all). N/A is excluded from every KPI and chart on this tab — it's the absence of an offer, not an outcome.</p>
       <p><b>Acceptance rate</b> = Accepted ÷ (Accepted + Declined) only. "Still waiting" and "Exchange" are excluded from both sides of that ratio, per Juli (2026-10) — Waiting hasn't resolved yet, and Exchange isn't clearly an accept or a decline. If that definition ever needs to change, it's one spot in the dashboard's source (retentionCounts) and the rate on every tile here follows.</p>
       <p>"Retention offers sent" is everything that isn't N/A: Accepted (any reason) + Declined + Waiting + Exchange. The accepted-offers pie only shows the Accepted slice, split by reason — Declined/Waiting/Exchange aren't a "reason" so they stay off that chart, and show in the KPI tiles instead.</p>
+      <p>The "(X% of sent)" next to Declined / Waiting / Exchange is that count's share of "Retention offers sent" (the same total — Accepted + Declined + Waiting + Exchange), not its share of every ticket in the helpdesk. Accepted doesn't get its own % tile since it's already the acceptance-rate KPI, just with a different denominator — don't read the two numbers as the same thing.</p>
+      <p><b>No $ amount here, by design, not a gap to fix quickly.</b> Gorgias's Retention Offer field is a dropdown reason ("Offer Accepted - Refund", etc.), not a dollar figure — the agent picks what was offered, nobody types in an amount. To show the real $ value an accepted offer represents, this would need to link each ticket to the actual transaction that paid it out (a Shopify refund, a store-credit issuance, a replacement order), which lives in a completely different system with no ticket ID on it to join against. That's not a dashboard tweak, it's a data-linking project: either Gorgias needs a new custom field where agents log the $ amount at the time of the offer (cheapest, but relies on agents filling it in every time), or tickets need to carry an order number that can be matched to a Shopify refund by date (fragile — multiple tickets/refunds near the same date for the same customer would be ambiguous). Flagging this so "can we get the $ value" doesn't come back as a surprise next time finance asks.</p>
       <p>There's a separate Retention Offer donut on the other CS/agent-performance dashboard (the Gorgias weekly one) — that one may define acceptance rate differently; if the two ever disagree, this page's definition is the one written above, not an assumption carried over from there.</p>
     </div>
   </details>
@@ -1304,20 +1329,16 @@
   (function () {
     var btnDashboard = document.getElementById('tab-btn-dashboard');
     var btnGuide = document.getElementById('tab-btn-guide');
-    var btnRetention = document.getElementById('tab-btn-retention');
     var viewDashboard = document.getElementById('view-dashboard');
     var viewGuide = document.getElementById('view-guide');
-    var viewRetention = document.getElementById('view-retention');
     function show(view) {
-      viewDashboard.style.display = view === 'dashboard' ? '' : 'none';
-      viewRetention.style.display = view === 'retention' ? '' : 'none';
-      viewGuide.style.display = view === 'guide' ? '' : 'none';
-      btnDashboard.classList.toggle('active', view === 'dashboard');
-      btnRetention.classList.toggle('active', view === 'retention');
-      btnGuide.classList.toggle('active', view === 'guide');
+      var isDashboard = view === 'dashboard';
+      viewDashboard.style.display = isDashboard ? '' : 'none';
+      viewGuide.style.display = isDashboard ? 'none' : '';
+      btnDashboard.classList.toggle('active', isDashboard);
+      btnGuide.classList.toggle('active', !isDashboard);
     }
     btnDashboard.onclick = function () { show('dashboard'); };
-    btnRetention.onclick = function () { show('retention'); };
     btnGuide.onclick = function () { show('guide'); };
 
     var expandAllBtn = document.getElementById('guide-expand-all');
@@ -1353,6 +1374,7 @@
       carrier: document.getElementById('subtab-carrier'),
       trends: document.getElementById('subtab-trends'),
       newproducts: document.getElementById('subtab-newproducts'),
+      retention: document.getElementById('subtab-retention'),
     };
     var buttons = {
       overview: document.getElementById('subtab-btn-overview'),
@@ -1360,6 +1382,7 @@
       carrier: document.getElementById('subtab-btn-carrier'),
       trends: document.getElementById('subtab-btn-trends'),
       newproducts: document.getElementById('subtab-btn-newproducts'),
+      retention: document.getElementById('subtab-btn-retention'),
     };
     if (!panes.overview) return; // guide-only page state, nothing to wire up
 
@@ -2125,7 +2148,6 @@
       // ---- Retention Offer, selected period (from "CS Dashboard 2026",
       // separate sheet — not a Loop/Shopify return, see the note above
       // renderRetentionTrendChart for the formula and what's excluded) ----
-      document.getElementById('retention-compare-note').textContent = document.getElementById('compare-note').textContent;
       (function renderRetentionSelectedPeriod() {
         function rowsForKeys(keys) {
           return (Array.isArray(retention) ? retention : []).filter(function (r) {
@@ -2146,9 +2168,16 @@
           ? deltaHtml(currRetention.rate, prevRetention.rate, { fmt: function (v) { return v.toFixed(0) + '%'; } })
           : '<span style="color:var(--text-muted)">no prior period to compare</span>';
 
+        // "% of sent" = this value's share of every retention-offer ticket
+        // (Accepted + Declined + Waiting + Exchange), not of ALL tickets —
+        // same denominator as "Retention offers sent" above, per Juli.
+        function pctOfSent(n) { return currRetention.sent ? ' (' + Math.round(n / currRetention.sent * 100) + '% of sent)' : ''; }
         document.getElementById('kpi-retention-declined').textContent = retentionHasData ? currRetention.declined : '—';
+        document.getElementById('kpi-retention-declined-pct').textContent = retentionHasData ? pctOfSent(currRetention.declined).trim() : '';
         document.getElementById('kpi-retention-waiting').textContent = retentionHasData ? currRetention.waiting : '—';
+        document.getElementById('kpi-retention-waiting-pct').textContent = retentionHasData ? pctOfSent(currRetention.waiting).trim() : '';
         document.getElementById('kpi-retention-exchange').textContent = retentionHasData ? currRetention.exchange : '—';
+        document.getElementById('kpi-retention-exchange-pct').textContent = retentionHasData ? pctOfSent(currRetention.exchange).trim() : '';
 
         if (currRetention.accepted > 0) {
           var acceptedLabels = RETENTION_VALUES_ACCEPTED.filter(function (v) { return currRetention.sums[v]; });
