@@ -142,6 +142,14 @@
     cursor: pointer;
   }
   .filterbar button:hover { color: var(--text-primary); }
+  .export-panel {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; width: 300px; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  }
+  .export-panel label { display: block; font-size: 13px; margin: 6px 0; color: var(--text-primary); cursor: pointer; }
+  .export-panel hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+  .export-panel input[type="checkbox"] { margin-right: 6px; vertical-align: middle; }
   #compare-note {
     width: 100%;
     color: var(--text-muted);
@@ -190,6 +198,7 @@
   .kpi .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
   .kpi .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
   .kpi .delta { font-size: 12px; margin-top: 4px; color: var(--text-secondary); }
+  .info-icon { cursor: help; color: var(--text-muted); font-size: 11px; border: 1px solid var(--text-muted); border-radius: 50%; width: 13px; height: 13px; display: inline-flex; align-items: center; justify-content: center; margin-left: 5px; vertical-align: middle; }
 
   .grid {
     display: grid;
@@ -518,6 +527,20 @@
     <label for="to-week">To</label>
     <select id="to-week"></select>
     <button id="reset-filters" type="button">Reset</button>
+    <div style="position:relative;margin-left:auto">
+      <button id="export-toggle" type="button">Export data ▾</button>
+      <div id="export-panel" class="export-panel" style="display:none">
+        <label><input type="checkbox" id="export-select-all"> <b>Select all</b></label>
+        <hr>
+        <label><input type="checkbox" class="export-check" value="detail" checked> Return detail — selected period only</label>
+        <label><input type="checkbox" class="export-check" value="weekly"> Loop returns (weekly) — all weeks</label>
+        <label><input type="checkbox" class="export-check" value="cohort"> Return rate (cohort) — all weeks</label>
+        <label><input type="checkbox" class="export-check" value="tickets"> Return tickets — all weeks</label>
+        <label><input type="checkbox" class="export-check" value="launch"> Product launch dates — all</label>
+        <button id="export-download" type="button" style="margin-top:8px;width:100%">Download CSV(s)</button>
+        <div class="table-note" style="margin-top:4px">Each checked dataset downloads as its own CSV file (browser may ask to allow multiple downloads the first time).</div>
+      </div>
+    </div>
     <div id="compare-note"></div>
   </div>
 
@@ -529,16 +552,16 @@
   <nav class="subtabnav">
     <button type="button" id="subtab-btn-overview" class="active">Overview</button>
     <button type="button" id="subtab-btn-products">Products</button>
-    <button type="button" id="subtab-btn-carrier">Carrier &amp; reserve</button>
     <button type="button" id="subtab-btn-trends">Trends</button>
     <button type="button" id="subtab-btn-newproducts">New products</button>
+    <button type="button" id="subtab-btn-carrier">Carrier</button>
   </nav>
 
   <div class="subtab-panel active" id="subtab-overview">
   <div class="section-label">Selected period</div>
   <section class="period-row">
     <div class="kpi-col">
-      <div class="kpi"><div class="label">Return rate — selected period</div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
+      <div class="kpi"><div class="label">Return rate — selected period<span class="info-icon" title="This is the ACTUAL rate observed so far for the selected week(s) — not a projection. A freshly-delivered week (still &quot;Provisional&quot;) will show a low number here simply because it hasn't had time to generate returns yet, not because it's actually performing better. For what that same week is LIKELY to end up at once it matures, see the &quot;Return reserve estimate&quot; card (Overview, below) — it projects using the average rate of recently matured cohorts instead.">ⓘ</span></div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
       <div class="kpi">
         <div class="label">Returns</div>
         <div class="value" id="kpi-count">—</div>
@@ -727,10 +750,18 @@
   </details>
 
   <details class="card">
+    <summary><span class="chev">▶</span><span class="tag">Filter bar</span><h2>Export data</h2></summary>
+    <div class="details-body">
+      <p>Added 2026-10. "Export data ▾" next to the filter bar opens a small panel to pick which datasets to download as CSV, any combination at once. "Return detail — selected period only" respects whatever From/To range is currently selected (the same rows the "Return detail" table below shows); every other dataset ("Loop returns (weekly)", "Return rate (cohort)", "Return tickets", "Product launch dates") always exports its FULL history regardless of the filter, since those are trend/reference data, not period-scoped like the detail rows.</p>
+      <p>Each checked dataset downloads as its own CSV file — there's no single combined file, since they don't share the same columns. The browser may ask permission the first time you download more than one at once; that's normal, not an error.</p>
+    </div>
+  </details>
+
+  <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The KPI tiles</h2></summary>
     <div class="details-body">
       <ul>
-        <li><b>Return rate — selected period.</b> The return rate (returns ÷ orders) of whichever week(s) are selected in the From/To filter above, weighted by order volume across a multi-week selection — matured or not (see "includes provisional" in the sub-line when a selected week hasn't closed its 100-day window yet). Needs the Shopify enrichment data to populate. Changed 2026-10 — this used to always show the last matured cohort regardless of the filter.</li>
+        <li><b>Return rate — selected period.</b> The return rate (returns ÷ orders) of whichever week(s) are selected in the From/To filter above, weighted by order volume across a multi-week selection — matured or not (see "includes provisional" in the sub-line when a selected week hasn't closed its 100-day window yet). Needs the Shopify enrichment data to populate. Changed 2026-10 — this used to always show the last matured cohort regardless of the filter. Hover the ⓘ next to the label for why a very fresh week can show a surprisingly low number here (it hasn't had time to generate returns yet) and where to look for the projected "true" rate instead.</li>
         <li><b>Returns.</b> The headline number is orders — one return = one order, even if that order has several products in it, so an order returning 5 products and another returning 2 counts as 2 here, not 7. The percent change vs. the prior period is underneath. The smaller line below that shows the total product-level returns instead (7, in that example) — that's the same count the Outcome chart's slices add up to, since Outcome is tallied per product/line item, not per order. That's the difference if those two numbers ever look like they "don't match": they're answering different questions on purpose.</li>
         <li><b>Avg days to return.</b> Average days between delivery and the return being submitted, for the selected period. Needs the Shopify "delivered at" data, same as the cohort chart.</li>
         <li><b>CSAT — return tickets.</b> Average satisfaction score for return-related support tickets in the selected period, weighted by how many surveys were actually scored each week (a week with more responses counts for more than a week with one or two).</li>
@@ -968,6 +999,39 @@
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+  // ===================== CSV export =====================
+  // Every dataset we export is already an array of plain objects keyed by
+  // the sheet's own column labels (that's what fetchTab() returns), so this
+  // reads column names straight off the first row — no separate schema to
+  // keep in sync. Dates are written as fmtDate() (M/D/YYYY, same as the rest
+  // of this page) rather than a raw Date's toString(), since that's what a
+  // human opening this in Excel/Sheets actually wants to see.
+  function csvCell_(v) {
+    if (v === null || v === undefined) return '';
+    if (v instanceof Date) return fmtDate(v);
+    var s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function rowsToCsv_(rows) {
+    if (!rows || !rows.length) return '';
+    var cols = Object.keys(rows[0]);
+    var lines = [cols.map(csvCell_).join(',')];
+    rows.forEach(function (r) { lines.push(cols.map(function (c) { return csvCell_(r[c]); }).join(',')); });
+    return lines.join('\r\n');
+  }
+  function downloadCsv_(filename, rows) {
+    if (!rows || !rows.length) { alert('No rows to export for "' + filename + '" (empty dataset right now).'); return; }
+    var blob = new Blob([rowsToCsv_(rows)], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
   // Groups by product, not variant: Loop's "Product title" is the full
@@ -1298,6 +1362,7 @@
     // see where the selected period sits inside the longer trend) ----------
     var weeklyHasData = Array.isArray(weekly) && weekly.length;
     var cohortHasData = Array.isArray(cohort) && cohort.length;
+    var latestCurrRows = []; // kept up to date by renderPeriod() below, read by the Export panel
 
     function renderVolumeValueCharts(currKeys) {
       if (!weeklyHasData) {
@@ -1811,6 +1876,7 @@
       }
       var currRows = detailRows.filter(function (r) { return inRange(r, currKeys); });
       var prevRows = hasPrev ? detailRows.filter(function (r) { return inRange(r, prevKeys); }) : [];
+      latestCurrRows = currRows; // for the Export panel — always the freshest "selected period" rows
 
       rebuildProductsPanel(currRows);
 
@@ -2083,6 +2149,57 @@
       renderPeriod();
     };
     renderPeriod();
+
+    // ===================== Export panel =====================
+    // Datasets pulled straight from the arrays already fetched above — no
+    // second network call. "detail" here is the whole "Loop returns" tab
+    // (one row per line item, every week); the "Return detail — selected
+    // period only" export instead uses latestCurrRows, which renderPeriod()
+    // keeps pointed at whatever the From/To filter currently selects.
+    (function () {
+      var toggle = document.getElementById('export-toggle');
+      var panel = document.getElementById('export-panel');
+      var selectAll = document.getElementById('export-select-all');
+      var checks = Array.prototype.slice.call(document.querySelectorAll('.export-check'));
+      if (!toggle || !panel) return;
+
+      toggle.onclick = function (e) {
+        e.stopPropagation();
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      };
+      document.addEventListener('click', function (e) {
+        if (panel.style.display !== 'none' && !panel.contains(e.target) && e.target !== toggle) panel.style.display = 'none';
+      });
+
+      selectAll.onchange = function () {
+        checks.forEach(function (c) { c.checked = selectAll.checked; });
+      };
+      checks.forEach(function (c) {
+        c.onchange = function () { selectAll.checked = checks.every(function (x) { return x.checked; }); };
+      });
+
+      function datasetFor(key) {
+        switch (key) {
+          case 'detail': return { filename: 'return-detail-selected-period.csv', rows: latestCurrRows };
+          case 'weekly': return { filename: 'loop-returns-weekly.csv', rows: Array.isArray(weekly) ? weekly : [] };
+          case 'cohort': return { filename: 'return-rate-cohort.csv', rows: Array.isArray(cohort) ? cohort : [] };
+          case 'tickets': return { filename: 'return-tickets.csv', rows: Array.isArray(tickets) ? tickets : [] };
+          case 'launch': return { filename: 'product-launch-dates.csv', rows: Array.isArray(launchDates) ? launchDates : [] };
+        }
+      }
+
+      document.getElementById('export-download').onclick = function () {
+        var any = false;
+        checks.forEach(function (c) {
+          if (!c.checked) return;
+          any = true;
+          var ds = datasetFor(c.value);
+          if (ds) downloadCsv_(ds.filename, ds.rows);
+        });
+        if (!any) alert('Check at least one dataset to export.');
+        else panel.style.display = 'none';
+      };
+    })();
   });
 })();
 </script>
