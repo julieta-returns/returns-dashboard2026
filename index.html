@@ -816,7 +816,15 @@
 
 <script>
 (function () {
-  var SHEET_ID = '1UBJHeKr7VFW4sr5kd-mZRsDsNtvGeWP6sF8WxmMiG_Q';
+  var SHEET_ID = '1UBJHeKr7VFW4sr5kd-mZRsDsNtvGeWP6sF8WxmMiG_Q'; // "CS Dashboard 2026" — Gorgias-sourced tabs (Return tickets, etc.)
+  // Split out 2026-10, per Juli: everything sourced from Loop Returns/Shopify
+  // now lives in its own sheet with its own sharing, so people with editor
+  // access to the Gorgias sheet above (for team/individual performance work)
+  // can't see or touch returns data. RETURNS_TABS lists exactly which sheet
+  // names live over there now; gvizUrl() below picks the right spreadsheet ID
+  // per tab name, everything else about fetchTab() is unchanged.
+  var RETURNS_SHEET_ID = '1PT9mMBOTxxOiVFppqbOQtf3vzMAywFJE5mHyjWxnkyw';
+  var RETURNS_TABS = ['Loop returns', 'Loop returns (weekly)', 'Return rate (cohort)', 'Product launch dates'];
   var DETAIL_ROW_CAP = 500; // cap on the Return detail table, to keep it fast when a wide period is selected
 
   function cssVar(name) {
@@ -834,7 +842,8 @@
   }
 
   function gvizUrl(sheetName) {
-    return 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(sheetName);
+    var id = RETURNS_TABS.indexOf(sheetName) !== -1 ? RETURNS_SHEET_ID : SHEET_ID;
+    return 'https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(sheetName);
   }
 
   // gviz gives every cell both a raw value (.v) and a locale-formatted
