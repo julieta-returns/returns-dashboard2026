@@ -1550,19 +1550,30 @@
     fromSel.value = lastIdx;
     toSel.value = lastIdx;
 
+    // Weeks before the selected "From" aren't valid "To" choices — disable
+    // them in the dropdown (native <option disabled> already renders greyed
+    // out and unclickable in every browser, no extra CSS needed) instead of
+    // letting the pair go backwards and silently auto-correcting after the
+    // fact. Found 2026-10-05: an earlier fix just snapped both selects back
+    // to the right order once picked backwards, but Juli pointed out the
+    // better fix is to never let "To" land before "From" in the first place.
+    // If "To" was already pointing at a week that's now invalid (because
+    // "From" just moved past it), bump "To" up to match "From" rather than
+    // leaving it on a disabled option.
+    function constrainToOptions() {
+      var fromIdx = Number(fromSel.value);
+      Array.prototype.forEach.call(toSel.options, function (opt) {
+        opt.disabled = Number(opt.value) < fromIdx;
+      });
+      if (Number(toSel.value) < fromIdx) toSel.value = String(fromIdx);
+    }
+    constrainToOptions();
+
     function selectedRange() {
       var a = Number(fromSel.value), b = Number(toSel.value);
+      // constrainToOptions() keeps "To" >= "From" at all times, so lo/hi
+      // here is just a safety net, not the primary mechanism.
       var lo = Math.min(a, b), hi = Math.max(a, b);
-      // If From/To were picked backwards (From later than To), the range
-      // itself is still computed correctly below — but also snap the two
-      // dropdowns to show it in the right order, so the UI never displays a
-      // confusing reversed pair (e.g. "From: Week 27 ... To: Week 24") while
-      // silently using 24-27 underneath. Found 2026-10-05: Juli picked From
-      // after To and the note below correctly said "weeks 24-27", but the
-      // selects themselves still showed 27/24 — looked like a bug even
-      // though the math was right.
-      if (a !== lo) fromSel.value = String(lo);
-      if (b !== hi) toSel.value = String(hi);
       return { lo: lo, hi: hi, weeks: weeksMeta.slice(lo, hi + 1) };
     }
 
@@ -1837,11 +1848,12 @@
       document.getElementById('detail-search').oninput = function (e) { renderDetailTable(e.target.value); };
     }
 
-    fromSel.onchange = renderPeriod;
+    fromSel.onchange = function () { constrainToOptions(); renderPeriod(); };
     toSel.onchange = renderPeriod;
     document.getElementById('reset-filters').onclick = function () {
       fromSel.value = lastIdx;
       toSel.value = lastIdx;
+      constrainToOptions();
       renderPeriod();
     };
     renderPeriod();
