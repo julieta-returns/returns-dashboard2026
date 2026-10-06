@@ -538,7 +538,7 @@
   <div class="section-label">Selected period</div>
   <section class="period-row">
     <div class="kpi-col">
-      <div class="kpi"><div class="label">Return rate — last matured cohort</div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
+      <div class="kpi"><div class="label">Return rate — selected period</div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
       <div class="kpi">
         <div class="label">Returns</div>
         <div class="value" id="kpi-count">—</div>
@@ -564,10 +564,17 @@
     <div class="card wide">
       <h2>Return reserve estimate</h2>
       <p class="desc" id="desc-reserve">Orders from cohorts still inside the 100-day return window haven't finished generating returns yet. This projects how many more are likely, using the average return rate of recently matured cohorts, and turns that into an estimated $ still to be refunded — useful for finance to avoid under-reserving.</p>
-      <div class="kpi" style="max-width:420px">
-        <div class="label">Estimated additional returns, unmatured cohorts</div>
-        <div class="value" id="kpi-reserve-returns">—</div>
-        <div class="sub" id="kpi-reserve-detail"></div>
+      <div class="kpi-col" style="flex-direction:row;gap:24px;flex-wrap:wrap">
+        <div class="kpi" style="max-width:420px">
+          <div class="label">Estimated additional returns, unmatured cohorts</div>
+          <div class="value" id="kpi-reserve-returns">—</div>
+          <div class="sub" id="kpi-reserve-detail"></div>
+        </div>
+        <div class="kpi" style="max-width:260px">
+          <div class="label">Already refunded, selected period</div>
+          <div class="value" id="kpi-reserve-refunded">—</div>
+          <div class="sub">same period as the KPI tiles above, not projected — this already happened</div>
+        </div>
       </div>
     </div>
   </section>
@@ -723,7 +730,7 @@
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The KPI tiles</h2></summary>
     <div class="details-body">
       <ul>
-        <li><b>Return rate — last matured cohort.</b> The only tile that ignores the From/To filter on purpose. It's the return rate of the most recent "matured" cohort (see "Return rate by purchase cohort" below). Needs the Shopify enrichment data to populate.</li>
+        <li><b>Return rate — selected period.</b> The return rate (returns ÷ orders) of whichever week(s) are selected in the From/To filter above, weighted by order volume across a multi-week selection — matured or not (see "includes provisional" in the sub-line when a selected week hasn't closed its 100-day window yet). Needs the Shopify enrichment data to populate. Changed 2026-10 — this used to always show the last matured cohort regardless of the filter.</li>
         <li><b>Returns.</b> The headline number is orders — one return = one order, even if that order has several products in it, so an order returning 5 products and another returning 2 counts as 2 here, not 7. The percent change vs. the prior period is underneath. The smaller line below that shows the total product-level returns instead (7, in that example) — that's the same count the Outcome chart's slices add up to, since Outcome is tallied per product/line item, not per order. That's the difference if those two numbers ever look like they "don't match": they're answering different questions on purpose.</li>
         <li><b>Avg days to return.</b> Average days between delivery and the return being submitted, for the selected period. Needs the Shopify "delivered at" data, same as the cohort chart.</li>
         <li><b>CSAT — return tickets.</b> Average satisfaction score for return-related support tickets in the selected period, weighted by how many surveys were actually scored each week (a week with more responses counts for more than a week with one or two).</li>
@@ -771,6 +778,7 @@
     <div class="details-body">
       <p>For the cohort weeks in your selected period that are still "Provisional" (inside Ekster's 100-day return window), this projects how many more returns are likely before that window closes, and what that's likely to cost in refunds. The projection applies the average return rate of the last several already-"Matured" cohorts to the provisional cohort's order count, then subtracts what's already come back — the rest is the projected remainder. The $ estimate multiplies that by the average refund-per-return seen in the selected period.</p>
       <p>This is a projection, not a committed number — treat it as finance's starting point for a refund reserve, not a guarantee. If every cohort in the selected period has already matured, there's nothing left to project and the tile says so.</p>
+      <p>Added 2026-10: the "Already refunded, selected period" tile next to it is NOT a projection — it's the actual $ already refunded in the selected period (same figure behind the Outcome chart's retained-value line), placed here so you have "already paid out" and "still likely coming" side by side.</p>
     </div>
   </details>
 
@@ -1335,13 +1343,29 @@
           '<td' + (statusMuted ? ' style="color:var(--text-muted)"' : '') + '>' + escapeHtml(r['Cohort status']) + '</td>' +
           '</tr>';
       }).join('');
-      var matured = c.slice().reverse().filter(function (r) { return String(r['Cohort status']).indexOf('Matured') === 0; }); // back to oldest -> newest for "last matured"
-      var lastMatured = matured[matured.length - 1];
-      if (lastMatured) {
-        document.getElementById('kpi-rate').textContent = fmtPct(toNum(lastMatured['Return rate (%)']));
-        document.getElementById('kpi-rate-sub').textContent = 'week ' + lastMatured['ISO week'] + ' · matured';
+      // KPI tile: return rate for whatever's selected in the From/To filter
+      // above, matured or not — changed 2026-10 per Juli, this used to always
+      // show the last MATURED cohort regardless of the filter; now it follows
+      // the filter like every other scorecard on the page. Weighted by orders
+      // (sum of returns / sum of orders), not a plain average of each week's
+      // %, so a 3-week selection reflects actual volume, not an unweighted
+      // average that'd let a tiny week swing the number as much as a big one.
+      var selectedCohorts = c.filter(function (r) {
+        var d = toDate(r['Week start (Monday)']);
+        return currKeys && d && currKeys[d.getTime()];
+      });
+      if (selectedCohorts.length) {
+        var selOrders = selectedCohorts.reduce(function (s, r) { return s + (toNum(r['Orders this week (Shopify)']) || 0); }, 0);
+        var selReturns = selectedCohorts.reduce(function (s, r) { return s + (toNum(r['Returns from this cohort (so far)']) || 0); }, 0);
+        var selRate = selOrders ? (selReturns / selOrders) * 100 : null;
+        document.getElementById('kpi-rate').textContent = selRate === null ? '—' : fmtPct(selRate);
+        var anyProvisional = selectedCohorts.some(function (r) { return String(r['Cohort status']).indexOf('Provisional') === 0; });
+        document.getElementById('kpi-rate-sub').textContent =
+          (selectedCohorts.length > 1 ? selectedCohorts.length + ' selected weeks' : 'week ' + selectedCohorts[0]['ISO week']) +
+          (anyProvisional ? ' · includes provisional' : ' · matured');
       } else {
-        document.getElementById('kpi-rate-sub').textContent = 'no matured cohort yet';
+        document.getElementById('kpi-rate').textContent = '—';
+        document.getElementById('kpi-rate-sub').textContent = 'no cohort data for the selected period';
       }
     }
 
@@ -1900,6 +1924,7 @@
       })();
 
       // ---- Return reserve estimate (selected period's still-provisional cohorts) ----
+      document.getElementById('kpi-reserve-refunded').textContent = fmtMoney(totalRefunded); // same var as the Outcome retained-value line above — already happened, not projected
       (function renderReserveEstimate() {
         var cohortRows = Array.isArray(cohort) ? cohort : [];
         var selectedCohorts = cohortRows.filter(function (r) {
