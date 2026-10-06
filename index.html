@@ -198,7 +198,50 @@
   .kpi .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
   .kpi .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
   .kpi .delta { font-size: 12px; margin-top: 4px; color: var(--text-secondary); }
-  .info-icon { cursor: help; color: var(--text-muted); font-size: 11px; border: 1px solid var(--text-muted); border-radius: 50%; width: 13px; height: 13px; display: inline-flex; align-items: center; justify-content: center; margin-left: 5px; vertical-align: middle; }
+  .info-icon {
+    cursor: help;
+    position: relative;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    font-family: Arial, Helvetica, sans-serif;
+    border: 1px solid var(--text-muted);
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+  .info-icon:hover, .info-icon:focus { color: #fff; background: var(--text-muted); outline: none; }
+  .info-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 135%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 270px;
+    white-space: normal;
+    background: #1f2430;
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 400;
+    font-family: inherit;
+    line-height: 1.4;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+    z-index: 80;
+  }
+  .info-icon:hover::after, .info-icon:focus::after { opacity: 1; visibility: visible; }
 
   .grid {
     display: grid;
@@ -569,9 +612,9 @@
   <div class="section-label">Selected period</div>
   <section class="period-row">
     <div class="kpi-col">
-      <div class="kpi"><div class="label">Return rate — selected period<span class="info-icon" title="This is the ACTUAL rate observed so far for the selected week(s) — not a projection. A freshly-delivered week (still &quot;Provisional&quot;) will show a low number here simply because it hasn't had time to generate returns yet, not because it's actually performing better. For what that same week is LIKELY to end up at once it matures, see the &quot;Return reserve estimate&quot; card (Overview, below) — it projects using the average rate of recently matured cohorts instead.">ⓘ</span></div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
+      <div class="kpi"><div class="label">Return rate — selected period<span class="info-icon" tabindex="0" data-tooltip="This is the ACTUAL rate observed so far for the selected week(s), not a projection. A freshly-delivered week (still &quot;Provisional&quot;) will show a low number here simply because it hasn't had time to generate returns yet, not because it's actually performing better. For what that same week is likely to end up at once it matures, see the &quot;Return reserve estimate&quot; card below, it projects using the average rate of recently matured cohorts instead.">i</span></div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
       <div class="kpi">
-        <div class="label">Returns</div>
+        <div class="label">Returns<span class="info-icon" tabindex="0" data-tooltip="This number counts orders, not products: an order returning 5 items and another returning 2 both count as 1 here, so this reads 2. The smaller line below shows the total product-level returns instead (7, in that example), the same count the Outcome chart's slices add up to. If these two ever look like they don't match, that's why, they're answering different questions on purpose.">i</span></div>
         <div class="value" id="kpi-count">—</div>
         <div class="delta" id="kpi-count-delta"></div>
         <div class="sub" id="kpi-count-products"></div>
@@ -579,8 +622,8 @@
     </div>
 
     <div class="kpi-col">
-      <div class="kpi"><div class="label">Avg days to return</div><div class="value" id="kpi-days">—</div><div class="delta" id="kpi-days-delta"></div></div>
-      <div class="kpi"><div class="label">CSAT — return tickets</div><div class="value" id="kpi-csat">—</div><div class="delta" id="kpi-csat-delta"></div></div>
+      <div class="kpi"><div class="label">Avg days to return<span class="info-icon" tabindex="0" data-tooltip="Average days between delivery and the return being submitted, for the selected period. Needs the Shopify &quot;delivered at&quot; data to populate, same as the cohort chart, so it can show as empty if that enrichment hasn't run yet.">i</span></div><div class="value" id="kpi-days">—</div><div class="delta" id="kpi-days-delta"></div></div>
+      <div class="kpi"><div class="label">CSAT — return tickets<span class="info-icon" tabindex="0" data-tooltip="Average satisfaction score for return-related support tickets in the selected period, weighted by how many surveys were actually scored each week, so a week with more responses counts for more than a week with one or two.">i</span></div><div class="value" id="kpi-csat">—</div><div class="delta" id="kpi-csat-delta"></div></div>
     </div>
 
     <div class="card outcome-card">
@@ -597,12 +640,12 @@
       <p class="desc" id="desc-reserve">Orders from cohorts still inside the 100-day return window haven't finished generating returns yet. This projects how many more are likely, using the average return rate of recently matured cohorts, and turns that into an estimated $ still to be refunded — useful for finance to avoid under-reserving.</p>
       <div class="kpi-col" style="flex-direction:row;gap:24px;flex-wrap:wrap">
         <div class="kpi" style="max-width:420px">
-          <div class="label">Estimated additional returns, unmatured cohorts</div>
+          <div class="label">Estimated additional returns, unmatured cohorts<span class="info-icon" tabindex="0" data-tooltip="A projection, not something that already happened: orders from cohorts still inside the 100-day return window haven't finished generating returns yet, so this estimates how many more are likely using the average return rate of recently matured cohorts.">i</span></div>
           <div class="value" id="kpi-reserve-returns">—</div>
           <div class="sub" id="kpi-reserve-detail"></div>
         </div>
         <div class="kpi" style="max-width:260px">
-          <div class="label">Already refunded, selected period</div>
+          <div class="label">Already refunded, selected period<span class="info-icon" tabindex="0" data-tooltip="Same period as the KPI tiles above. Not a projection, this already happened, unlike the tile next to it.">i</span></div>
           <div class="value" id="kpi-reserve-refunded">—</div>
           <div class="sub">same period as the KPI tiles above, not projected — this already happened</div>
         </div>
@@ -769,8 +812,8 @@
     <summary><span class="chev">▶</span><span class="tag">Selected period</span><h2>The KPI tiles</h2></summary>
     <div class="details-body">
       <ul>
-        <li><b>Return rate — selected period.</b> The return rate (returns ÷ orders) of whichever week(s) are selected in the From/To filter above, weighted by order volume across a multi-week selection — matured or not (see "includes provisional" in the sub-line when a selected week hasn't closed its 100-day window yet). Needs the Shopify enrichment data to populate. Changed 2026-10 — this used to always show the last matured cohort regardless of the filter. Hover the ⓘ next to the label for why a very fresh week can show a surprisingly low number here (it hasn't had time to generate returns yet) and where to look for the projected "true" rate instead.</li>
-        <li><b>Returns.</b> The headline number is orders — one return = one order, even if that order has several products in it, so an order returning 5 products and another returning 2 counts as 2 here, not 7. The percent change vs. the prior period is underneath. The smaller line below that shows the total product-level returns instead (7, in that example) — that's the same count the Outcome chart's slices add up to, since Outcome is tallied per product/line item, not per order. That's the difference if those two numbers ever look like they "don't match": they're answering different questions on purpose.</li>
+        <li><b>Return rate — selected period.</b> The return rate (returns ÷ orders) of whichever week(s) are selected in the From/To filter above, weighted by order volume across a multi-week selection — matured or not (see "includes provisional" in the sub-line when a selected week hasn't closed its 100-day window yet). Needs the Shopify enrichment data to populate. Changed 2026-10 — this used to always show the last matured cohort regardless of the filter. Hover (or tab to) the small circled "i" next to the label for why a very fresh week can show a surprisingly low number here (it hasn't had time to generate returns yet) and where to look for the projected "true" rate instead.</li>
+        <li><b>Returns.</b> The headline number is orders — one return = one order, even if that order has several products in it, so an order returning 5 products and another returning 2 counts as 2 here, not 7. The percent change vs. the prior period is underneath. The smaller line below that shows the total product-level returns instead (7, in that example) — that's the same count the Outcome chart's slices add up to, since Outcome is tallied per product/line item, not per order. That's the difference if those two numbers ever look like they "don't match": they're answering different questions on purpose. (Also on the ⓘ hover now.)</li>
         <li><b>Avg days to return.</b> Average days between delivery and the return being submitted, for the selected period. Needs the Shopify "delivered at" data, same as the cohort chart.</li>
         <li><b>CSAT — return tickets.</b> Average satisfaction score for return-related support tickets in the selected period, weighted by how many surveys were actually scored each week (a week with more responses counts for more than a week with one or two).</li>
       </ul>
