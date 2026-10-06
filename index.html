@@ -316,6 +316,39 @@
   }
   .tabnav button:hover { color: var(--text-primary); }
 
+  /* Sub-tabs inside the Dashboard view — split what used to be one long
+     scrolling page into separate panes. The filterbar (From/To) sits above
+     these and is NEVER inside a pane, so it stays visible and in effect no
+     matter which pane is open; switching panes doesn't touch the selection. */
+  .subtabnav {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    max-width: 1280px;
+    margin: 0 auto 14px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .subtabnav button {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .subtabnav button.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--series-2);
+  }
+  .subtabnav button:hover { color: var(--text-primary); }
+  .subtab-panel { display: none; }
+  .subtab-panel.active { display: block; }
+
   .guide h2 { font-size: 14px; margin: 0; display: inline; }
   .guide p { font-size: 13px; color: var(--text-secondary); margin: 0 0 10px; line-height: 1.5; }
   .guide p:last-child { margin-bottom: 0; }
@@ -488,6 +521,20 @@
     <div id="compare-note"></div>
   </div>
 
+  <!-- From/To above applies everywhere; it lives outside every pane below so
+       switching panes never resets or hides it. "Trends" and "New products"
+       panes show rolling/launch-based data that the filter doesn't scope —
+       same as before, just moved into their own panes instead of one long
+       scroll. -->
+  <nav class="subtabnav">
+    <button type="button" id="subtab-btn-overview" class="active">Overview</button>
+    <button type="button" id="subtab-btn-products">Products</button>
+    <button type="button" id="subtab-btn-carrier">Carrier &amp; reserve</button>
+    <button type="button" id="subtab-btn-trends">Trends</button>
+    <button type="button" id="subtab-btn-newproducts">New products</button>
+  </nav>
+
+  <div class="subtab-panel active" id="subtab-overview">
   <div class="section-label">Selected period</div>
   <section class="period-row">
     <div class="kpi-col">
@@ -512,7 +559,9 @@
       <div class="table-note" id="outcome-retained"></div>
     </div>
   </section>
+  </div>
 
+  <div class="subtab-panel" id="subtab-products">
   <section class="grid">
     <div class="card wide">
       <h2>Products — return reasons</h2>
@@ -552,7 +601,9 @@
       <div class="table-note" id="detail-note"></div>
     </div>
   </section>
+  </div>
 
+  <div class="subtab-panel" id="subtab-carrier">
   <div class="section-label">Selected period — other lenses (CEO / Operations / Finance)</div>
   <section class="grid">
     <div class="card wide">
@@ -572,7 +623,9 @@
       </div>
     </div>
   </section>
+  </div>
 
+  <div class="subtab-panel" id="subtab-trends">
   <div class="section-label">Trends (rolling, not affected by the filter above)</div>
   <section class="grid">
     <div class="card wide">
@@ -614,7 +667,9 @@
       <div class="legend-note" id="outcome-trend-legend"></div>
     </div>
   </section>
+  </div>
 
+  <div class="subtab-panel" id="subtab-newproducts">
   <div class="section-label">New products (since launch — not affected by the filter above)</div>
   <section class="grid">
     <div class="card wide">
@@ -629,6 +684,7 @@
       <div class="table-note" id="new-products-note"></div>
     </div>
   </section>
+  </div>
 </div>
 
 <div id="view-guide" class="guide" style="display:none">
@@ -1081,6 +1137,57 @@
         Array.prototype.forEach.call(viewGuide.querySelectorAll('details'), function (d) { d.open = false; });
       };
     }
+  })();
+
+  // ===================== dashboard sub-tabs =====================
+  // Splits the Dashboard view into panes (Overview / Products / Carrier &
+  // reserve / Trends / New products) so there's less to scroll through at
+  // once. The From/To filterbar above lives OUTSIDE every pane, so it's
+  // always visible and switching panes never changes or hides the selection
+  // — every pane that depends on it (all but Trends/New products, same as
+  // before) just keeps showing whatever renderPeriod() last computed for it.
+  // Charts get created even while their pane is hidden (display:none), which
+  // leaves Chart.js with a 0-size canvas to measure — so every time a pane
+  // becomes visible we resize its charts once the browser's actually laid
+  // the pane out (requestAnimationFrame, not just right after the display
+  // change), or they'd stay squashed to nothing.
+  (function () {
+    var panes = {
+      overview: document.getElementById('subtab-overview'),
+      products: document.getElementById('subtab-products'),
+      carrier: document.getElementById('subtab-carrier'),
+      trends: document.getElementById('subtab-trends'),
+      newproducts: document.getElementById('subtab-newproducts'),
+    };
+    var buttons = {
+      overview: document.getElementById('subtab-btn-overview'),
+      products: document.getElementById('subtab-btn-products'),
+      carrier: document.getElementById('subtab-btn-carrier'),
+      trends: document.getElementById('subtab-btn-trends'),
+      newproducts: document.getElementById('subtab-btn-newproducts'),
+    };
+    if (!panes.overview) return; // guide-only page state, nothing to wire up
+
+    function resizeChartsIn(pane) {
+      var canvases = pane.querySelectorAll('canvas[id]');
+      Array.prototype.forEach.call(canvases, function (c) {
+        var chart = chartInstances[c.id];
+        if (chart) chart.resize();
+      });
+    }
+
+    function show(name) {
+      Object.keys(panes).forEach(function (key) {
+        var isActive = key === name;
+        panes[key].classList.toggle('active', isActive);
+        buttons[key].classList.toggle('active', isActive);
+      });
+      requestAnimationFrame(function () { resizeChartsIn(panes[name]); });
+    }
+
+    Object.keys(buttons).forEach(function (key) {
+      buttons[key].onclick = function () { show(key); };
+    });
   })();
 
   // ===================== theme toggle (dark / light) =====================
