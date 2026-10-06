@@ -496,7 +496,7 @@
 
 <header style="position: relative;">
   <h1>Returns dashboard</h1>
-  <p>Loop Returns × Shopify, read live from the CS Dashboard 2026 sheet.</p>
+  <p>Loop Returns × Shopify, read live from the "CS Dashboard 2026" and "Returns Dashboard 2026" Google Sheets.</p>
   <div class="asof" id="asof">Loading…</div>
   <button type="button" class="theme-toggle" id="theme-toggle" title="Toggle dark / light mode" aria-label="Toggle dark / light mode">🌙</button>
 </header>
@@ -813,7 +813,7 @@
   <details class="card">
     <summary><span class="chev">▶</span><span class="tag">Data</span><h2>Where the numbers come from</h2></summary>
     <div class="details-body">
-      <p>Five tabs in the "CS Dashboard 2026" sheet: "Loop returns" (one row per returned line item — the rawest data), "Loop returns (weekly)" (the same data pre-aggregated per week), "Return rate (cohort)", "Return tickets", and "Product launch dates". A weekly Google Apps Script keeps those updated from Gorgias, Loop Returns, and Shopify. If a section looks empty, it's almost always that the script hasn't had valid Shopify credentials yet, or hasn't run for that week yet — not a bug in this page.</p>
+      <p>Split across two Google Sheets as of 2026-10, each with its own weekly Apps Script and its own sharing settings. "Returns Dashboard 2026" (Loop Returns + Shopify sourced, more restricted sharing) holds "Loop returns" (one row per returned line item — the rawest data), "Loop returns (weekly)" (the same data pre-aggregated per week), "Return rate (cohort)", and "Product launch dates". "CS Dashboard 2026" (Gorgias-sourced, broadly shared with the team) holds "Return tickets" — the only one of these five tabs still read from there. If a section looks empty, it's almost always that the relevant script hasn't had valid Shopify credentials yet, or hasn't run for that week yet — not a bug in this page.</p>
     </div>
   </details>
 
@@ -828,7 +828,7 @@
 </main>
 
 <footer>
-  Reads the "Loop returns", "Loop returns (weekly)", "Return rate (cohort)" and "Return tickets" tabs directly from the sheet.
+  Reads the "Loop returns", "Loop returns (weekly)" and "Return rate (cohort)" tabs from "Returns Dashboard 2026", and "Return tickets" from "CS Dashboard 2026" — two sheets, read directly, nothing cached.
   "Product" groups by the text before " – " in Loop's product title (e.g. "Ekster Cardholder Pro – Jet Black" → "Ekster Cardholder Pro"); a title with no separator shows as-is.
   The cohort return rate depends on the Shopify enrichment columns — it stays empty until a script run has valid Shopify credentials.
 </footer>
@@ -1284,7 +1284,7 @@
     if (!anyOk) {
       var firstError = [weekly, cohort, detail, tickets].map(function (r) { return r && r.err ? String(r.err.message || r.err) : null; }).filter(Boolean)[0];
       showBanner(
-        'Most likely the sheet isn\'t shared as "Anyone with the link (Ekster) — Viewer" yet — that\'s what this page reads over. Share → General access → Anyone at ekster.com with the link.' +
+        'Most likely one of the two sheets this page reads (the "CS Dashboard 2026" or the "Returns Dashboard 2026" sheet) isn\'t shared as "Anyone with the link — Viewer" yet. Share → General access → Anyone with the link.' +
         (firstError ? '<br><br><code>' + firstError.replace(/</g, '&lt;') + '</code>' : '')
       );
       document.getElementById('asof').textContent = 'Could not load data.';
@@ -1304,7 +1304,15 @@
         ['chart-volume', 'chart-value'].forEach(function (id) { emptyState(id, 'No data yet in "Loop returns (weekly)".'); });
         return;
       }
-      var w = weekly.slice(-12);
+      // Sort by week start before taking the last 12 — "Loop returns (weekly)"
+      // can have its rows out of chronological sheet order (writeLoopReturns_
+      // deletes-then-appends per week, so a backfill or re-run lands its rows
+      // at the bottom, not back in date order). Without this sort, "last 12
+      // rows" silently meant "last 12 sheet rows", not "last 12 weeks" — bug
+      // found 2026-10 via Juli's "weeks aren't in order" report.
+      var w = weekly.slice().sort(function (a, b) {
+        return toDate(a['Week start (Monday)']) - toDate(b['Week start (Monday)']);
+      }).slice(-12);
       function colorsFor(baseVar) {
         var base = cssVar(baseVar);
         return w.map(function (r) {
@@ -1336,7 +1344,7 @@
         var statusMuted = String(r['Cohort status']).indexOf('Provisional') === 0;
         return '<tr style="' + (selected ? '' : 'opacity:.45') + '">' +
           '<td>' + escapeHtml(r['ISO week']) + '</td>' +
-          '<td>' + (d ? d.toLocaleDateString('en-GB') : '—') + '</td>' +
+          '<td>' + fmtDate(d) + '</td>' +
           '<td class="num">' + (toNum(r['Orders this week (Shopify)']) === null ? '—' : toNum(r['Orders this week (Shopify)']).toLocaleString('en-US')) + '</td>' +
           '<td class="num">' + (toNum(r['Returns from this cohort (so far)']) === null ? '—' : toNum(r['Returns from this cohort (so far)']).toLocaleString('en-US')) + '</td>' +
           '<td class="num">' + fmtPct(toNum(r['Return rate (%)'])) + '</td>' +
@@ -1375,7 +1383,13 @@
     renderCohortChart(null);
 
     if (Array.isArray(tickets) && tickets.length) {
-      var t = tickets.slice(-12);
+      // Same defensive sort as "Loop returns (weekly)" above — "Return
+      // tickets" is a different tab (still Gorgias-sourced), but there's no
+      // guarantee its rows stay in date order forever either, so this
+      // doesn't rely on sheet row order matching chronological order.
+      var t = tickets.slice().sort(function (a, b) {
+        return toDate(a['Week start (Monday)']) - toDate(b['Week start (Monday)']);
+      }).slice(-12);
       lineChart('chart-csat', t.map(isoWeekLabel), [
         { data: t.map(function (r) { return toNum(r['CSAT - Return tickets (avg score)']); }), borderColor: cssVar('--series-1'), backgroundColor: cssVar('--series-1') },
         { data: t.map(function (r) { return toNum(r['CSAT - All tickets (avg score)']); }), borderColor: cssVar('--text-muted'), backgroundColor: cssVar('--text-muted'), borderDash: [4, 3] },
