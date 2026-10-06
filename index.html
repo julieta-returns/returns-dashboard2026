@@ -12,73 +12,56 @@
 <style>
   :root {
     color-scheme: light;
-    /* Palette pulled 2026-10 straight from ekster.com's own CSS custom
-       properties (--color-red, --color-sand-*, --color-gray-*, --color-
-       primary) via computed styles on a live product page — not guessed
-       from a screenshot. --brand-red / --brand-sand are Ekster's actual
-       tokens, kept as named vars below in case they're useful elsewhere
-       (e.g. a future export/print header). */
-    --brand-red:      #812833; /* Ekster's --color-red */
-    --brand-red-dark: #742733; /* Ekster's --color-red-900 */
-    --brand-sand:     #c4b090; /* Ekster's --color-sand-300 */
-    --surface-1:      #fcfaf6;
-    --page-plane:     #f4f0e9;
-    --text-primary:   #252525; /* Ekster's --color-primary */
-    --text-secondary: #585858; /* Ekster's --color-gray-900 */
-    --text-muted:     #8f8f8f; /* Ekster's --color-gray-600 */
-    --grid:           #ece6d9;
-    --baseline:       #cfcfcf; /* Ekster's --color-gray-light */
-    --border:         rgba(37,37,37,0.12);
-    --brand-sand-dark: #84614a; /* Ekster's --color-sand-700 — used where sand needs more contrast (e.g. an active-tab underline) than the paler --brand-sand reads at */
-    /* Chart series: series-1 is the brand red itself, series-4 and the rest
-       are also lifted straight from Ekster's sand/orange/gray scale — one
-       exception (series-3, a green) is NOT a brand token: a 5-category
-       chart needs real hue separation to stay readable at a glance, and
-       Ekster's own palette is almost entirely warm reds/tans/grays with no
-       cool color in it, so an all-brand palette here would make two or
-       three series hard to tell apart on the stacked/outcome charts. */
-    --series-1: #812833; /* Ekster red (brand) */
-    --series-2: #d15525; /* Ekster orange-600 (brand) */
-    --series-3: #3b7d5e; /* muted green — not a brand token, added for contrast */
-    --series-4: #9e7758; /* Ekster sand-600 (brand) */
-    --series-5: #585858; /* Ekster gray-900 (brand) */
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1: #2a78d6; /* blue */
+    --series-2: #eb6834; /* orange */
+    --series-3: #1baf7a; /* aqua */
+    --series-4: #eda100; /* yellow */
+    --series-5: #e87ba4; /* magenta */
     --status-good: #0ca30c;
-    --status-warning: #d15525;
-    --status-serious: #f1424b; /* Ekster's own --color-danger-500 */
+    --status-warning: #fab219;
+    --status-serious: #ec835a;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
       color-scheme: dark;
-      --surface-1:      #1d1715;
-      --page-plane:     #120e0c;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
       --text-primary:   #ffffff;
-      --text-secondary: #d9cdb8;
-      --text-muted:     #a89f91;
-      --grid:           #352a24;
-      --baseline:       #4a3f38;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
       --border:         rgba(255,255,255,0.10);
-      --series-1: #c2535f;
-      --series-2: #e8703b;
-      --series-3: #4caf82;
-      --series-4: #ba9f7d;
-      --series-5: #8f8f8f;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #d55181;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --surface-1:      #1d1715;
-    --page-plane:     #120e0c;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
     --text-primary:   #ffffff;
-    --text-secondary: #d9cdb8;
-    --text-muted:     #a89f91;
-    --grid:           #352a24;
-    --baseline:       #4a3f38;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
     --border:         rgba(255,255,255,0.10);
-    --series-1: #c2535f;
-    --series-2: #e8703b;
-    --series-3: #4caf82;
-    --series-4: #ba9f7d;
-    --series-5: #8f8f8f;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
   }
 
   * { box-sizing: border-box; }
@@ -100,7 +83,7 @@
     max-width: 1280px;
     margin: 0 auto;
   }
-  header h1 { font-size: 20px; margin: 0 0 4px; color: var(--brand-red); font-weight: 700; }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
   header p { margin: 0; color: var(--text-secondary); font-size: 13px; }
   .asof { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
 
@@ -240,7 +223,7 @@
     margin-left: 5px;
     vertical-align: middle;
   }
-  .info-icon:hover, .info-icon:focus { color: #fff; background: var(--brand-red); border-color: var(--brand-red); outline: none; }
+  .info-icon:hover, .info-icon:focus { color: #fff; background: var(--text-muted); outline: none; }
   .info-icon::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -428,7 +411,7 @@
   }
   .subtabnav button.active {
     color: var(--text-primary);
-    border-bottom-color: var(--brand-sand-dark);
+    border-bottom-color: var(--series-2);
   }
   .subtabnav button:hover { color: var(--text-primary); }
   .subtab-panel { display: none; }
