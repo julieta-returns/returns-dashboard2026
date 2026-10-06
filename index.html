@@ -1567,7 +1567,19 @@
       });
       if (Number(toSel.value) < fromIdx) toSel.value = String(fromIdx);
     }
+    // Mirror of the above, the other direction: weeks after the selected
+    // "To" aren't valid "From" choices. Setting .value programmatically
+    // doesn't fire onchange, so these two never trigger each other in a
+    // loop — each only runs from the OTHER select's own change handler.
+    function constrainFromOptions() {
+      var toIdx = Number(toSel.value);
+      Array.prototype.forEach.call(fromSel.options, function (opt) {
+        opt.disabled = Number(opt.value) > toIdx;
+      });
+      if (Number(fromSel.value) > toIdx) fromSel.value = String(toIdx);
+    }
     constrainToOptions();
+    constrainFromOptions();
 
     function selectedRange() {
       var a = Number(fromSel.value), b = Number(toSel.value);
@@ -1849,11 +1861,12 @@
     }
 
     fromSel.onchange = function () { constrainToOptions(); renderPeriod(); };
-    toSel.onchange = renderPeriod;
+    toSel.onchange = function () { constrainFromOptions(); renderPeriod(); };
     document.getElementById('reset-filters').onclick = function () {
       fromSel.value = lastIdx;
       toSel.value = lastIdx;
       constrainToOptions();
+      constrainFromOptions();
       renderPeriod();
     };
     renderPeriod();
