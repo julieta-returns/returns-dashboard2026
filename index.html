@@ -631,10 +631,11 @@
     <div class="card wide">
       <h2>Return rate by purchase cohort</h2>
       <p class="desc">% of orders from each delivery week that eventually come back — not the same as "returns processed that week." Provisional cohorts are still inside Ekster's 100-day return window.</p>
-      <div class="chart-wrap" data-chart="chart-cohort"><canvas id="chart-cohort"></canvas></div>
-      <div class="legend-note">
-        <span><span class="dot" style="background:var(--series-1)"></span>Matured (final)</span>
-        <span><span class="dot" style="background:var(--text-muted)"></span>Provisional (still in window)</span>
+      <div class="table-scroll">
+        <table class="data-table" id="table-cohort">
+          <thead><tr><th>ISO week</th><th>Week start</th><th style="text-align:right">Orders</th><th style="text-align:right">Returns</th><th style="text-align:right">Return rate</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
 
@@ -1301,28 +1302,30 @@
     }
 
     function renderCohortChart(currKeys) {
+      var tbody = document.querySelector('#table-cohort tbody');
       if (!cohortHasData) {
-        emptyState('chart-cohort', 'No data yet in "Return rate (cohort)" — needs a run with working Shopify credentials.');
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">No data yet in "Return rate (cohort)" — needs a run with working Shopify credentials.</div></td></tr>';
         return;
       }
+      // Newest first in the table — easier to scan the latest weeks without
+      // scrolling, unlike the old chart which read oldest -> newest left -> right.
       var c = cohort.slice().sort(function (a, b) {
-        return toDate(a['Week start (Monday)']) - toDate(b['Week start (Monday)']);
-      }); // explicit oldest -> newest, left -> right, regardless of sheet row order
-      var colors = c.map(function (r) {
-        var base = statusColorFor(r['Cohort status']);
+        return toDate(b['Week start (Monday)']) - toDate(a['Week start (Monday)']);
+      });
+      tbody.innerHTML = c.map(function (r) {
         var d = toDate(r['Week start (Monday)']);
         var selected = !currKeys || (d && currKeys[d.getTime()]);
-        return selected ? base : withAlpha(base, 0.3);
-      });
-      barChart('chart-cohort', c.map(isoWeekLabel), c.map(function (r) { return toNum(r['Return rate (%)']); }), colors, {
-        tooltip: {
-          label: function (ctx) {
-            var row = c[ctx.dataIndex];
-            return fmtPct(ctx.raw) + ' · ' + row['Cohort status'];
-          },
-        },
-      });
-      var matured = c.filter(function (r) { return String(r['Cohort status']).indexOf('Matured') === 0; });
+        var statusMuted = String(r['Cohort status']).indexOf('Provisional') === 0;
+        return '<tr style="' + (selected ? '' : 'opacity:.45') + '">' +
+          '<td>' + escapeHtml(r['ISO week']) + '</td>' +
+          '<td>' + (d ? d.toLocaleDateString('en-GB') : '—') + '</td>' +
+          '<td class="num">' + (toNum(r['Orders this week (Shopify)']) === null ? '—' : toNum(r['Orders this week (Shopify)']).toLocaleString('en-US')) + '</td>' +
+          '<td class="num">' + (toNum(r['Returns from this cohort (so far)']) === null ? '—' : toNum(r['Returns from this cohort (so far)']).toLocaleString('en-US')) + '</td>' +
+          '<td class="num">' + fmtPct(toNum(r['Return rate (%)'])) + '</td>' +
+          '<td' + (statusMuted ? ' style="color:var(--text-muted)"' : '') + '>' + escapeHtml(r['Cohort status']) + '</td>' +
+          '</tr>';
+      }).join('');
+      var matured = c.slice().reverse().filter(function (r) { return String(r['Cohort status']).indexOf('Matured') === 0; }); // back to oldest -> newest for "last matured"
       var lastMatured = matured[matured.length - 1];
       if (lastMatured) {
         document.getElementById('kpi-rate').textContent = fmtPct(toNum(lastMatured['Return rate (%)']));
