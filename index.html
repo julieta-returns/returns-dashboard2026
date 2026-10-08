@@ -766,6 +766,13 @@
       </div>
     </div>
 
+    <div class="card wide">
+      <h2>Return rate by value — monthly, 12-month rolling average</h2>
+      <p class="desc">% of sales value returned each month (usd_return ÷ usd_sold, all categories), plus a trailing 12-month average to smooth out single-month noise. Source: Shauna's reporting sheet, copied over monthly — a different calculation than "Return rate by purchase cohort" above (that one's weekly, by order count; this one's monthly, by $ value).</p>
+      <div class="chart-wrap" data-chart="chart-monthly-return-rate"><canvas id="chart-monthly-return-rate"></canvas></div>
+      <div class="legend-note" id="monthly-return-rate-legend"></div>
+    </div>
+
     <div class="card">
       <h2>Returns per week</h2>
       <p class="desc">Count of Loop returns submitted that week (Loop returns weekly).</p>
@@ -1005,7 +1012,7 @@
   // names live over there now; gvizUrl() below picks the right spreadsheet ID
   // per tab name, everything else about fetchTab() is unchanged.
   var RETURNS_SHEET_ID = '1PT9mMBOTxxOiVFppqbOQtf3vzMAywFJE5mHyjWxnkyw';
-  var RETURNS_TABS = ['Loop returns', 'Loop returns (weekly)', 'Return rate (cohort)', 'Product launch dates'];
+  var RETURNS_TABS = ['Loop returns', 'Loop returns (weekly)', 'Return rate (cohort)', 'Product launch dates', 'Return rate (monthly, by value)'];
   var DETAIL_ROW_CAP = 500; // cap on the Return detail table, to keep it fast when a wide period is selected
 
   function cssVar(name) {
@@ -1475,8 +1482,9 @@
     fetchTab('Return tickets').catch(function (e) { return { err: e }; }),
     fetchTab('Product launch dates').catch(function (e) { return { err: e }; }),
     fetchTab('Retention Offer').catch(function (e) { return { err: e }; }),
+    fetchTab('Return rate (monthly, by value)').catch(function (e) { return { err: e }; }),
   ]).then(function (results) {
-    var weekly = results[0], cohort = results[1], detail = results[2], tickets = results[3], launchDates = results[4], retention = results[5];
+    var weekly = results[0], cohort = results[1], detail = results[2], tickets = results[3], launchDates = results[4], retention = results[5], monthlyReturnRate = results[6];
 
     var anyOk = [weekly, cohort, detail, tickets].some(function (r) { return Array.isArray(r); });
     if (!anyOk) {
@@ -1575,6 +1583,35 @@
         document.getElementById('kpi-rate-sub').textContent = 'no cohort data for the selected period';
       }
     }
+
+    // ---------- Return rate by value, monthly (all-time trend, like the
+    // other charts in this section — not scoped to the From/To filter).
+    // Source: "Return rate (monthly, by value)", copied from Shauna's
+    // reporting sheet by syncMonthlyReturnRateByValue_ in the Apps Script.
+    // Two series: the raw monthly rate (noisier, swings with a slow or busy
+    // month) and her 12-month trailing rolling average (the smoothed trend
+    // line this was actually added for). ----------
+    (function renderMonthlyReturnRateChart() {
+      var rows = Array.isArray(monthlyReturnRate) ? monthlyReturnRate : [];
+      if (!rows.length) {
+        emptyState('chart-monthly-return-rate', 'No data yet in "Return rate (monthly, by value)".');
+        return;
+      }
+      // "YYYY-MM" sorts correctly as a plain string, no date parsing needed.
+      var m = rows.slice().sort(function (a, b) {
+        return String(a['Month (YYYY-MM)']).localeCompare(String(b['Month (YYYY-MM)']));
+      });
+      lineChart('chart-monthly-return-rate', m.map(function (r) { return r['Month (YYYY-MM)']; }), [
+        { data: m.map(function (r) { return toNum(r['Return rate - by value (%)']); }), borderColor: cssVar('--text-muted'), backgroundColor: cssVar('--text-muted'), borderDash: [4, 3] },
+        { data: m.map(function (r) { return toNum(r['Rolling 12-mo average (%)']); }), borderColor: cssVar('--series-1'), backgroundColor: cssVar('--series-1') },
+      ]);
+      var latest = m[m.length - 1];
+      var latestAvg = toNum(latest['Rolling 12-mo average (%)']);
+      document.getElementById('monthly-return-rate-legend').innerHTML =
+        '<span><span class="dot" style="background:var(--series-1)"></span>12-month rolling average' +
+        (latestAvg === null ? '' : ' (latest: ' + fmtPct(latestAvg) + ')') + '</span>' +
+        '<span><span class="dot" style="background:var(--text-muted)"></span>Monthly rate (raw)</span>';
+    })();
 
     // Initial render (no filter selected yet) — re-rendered with the actual
     // highlighted weeks once renderPeriod() runs below.
