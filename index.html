@@ -644,12 +644,13 @@
   <div class="section-label">Selected period</div>
   <section class="period-row">
     <div class="kpi-col">
-      <div class="kpi"><div class="label">Return rate — selected period<span class="info-icon" tabindex="0" data-tooltip="This is the ACTUAL rate observed so far for the selected week(s), not a projection. A freshly-delivered week (still &quot;Provisional&quot;) will show a low number here simply because it hasn't had time to generate returns yet, not because it's actually performing better. For what that same week is likely to end up at once it matures, see the &quot;Return reserve estimate&quot; card below, it projects using the average rate of recently matured cohorts instead.">i</span></div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div></div>
+      <div class="kpi"><div class="label">Return rate — selected period<span class="info-icon" tabindex="0" data-tooltip="This is the ACTUAL rate observed so far for the selected week(s), not a projection. A freshly-delivered week (still &quot;Provisional&quot;) will show a low number here simply because it hasn't had time to generate returns yet, not because it's actually performing better. For what that same week is likely to end up at once it matures, see the &quot;Return reserve estimate&quot; card below, it projects using the average rate of recently matured cohorts instead.">i</span></div><div class="value" id="kpi-rate">—</div><div class="sub" id="kpi-rate-sub"></div><div class="sub" id="kpi-rate-monthly" style="margin-top:2px"><span class="info-icon" tabindex="0" data-tooltip="A different calculation, from Shauna's sheet: % of sales VALUE returned in a calendar month (usd_return ÷ usd_sold), smoothed with a 12-month trailing average — not scoped to the From/To filter above, since that's weekly and this is monthly. It mixes returns from orders placed in different months, while the number above only counts orders from the selected week(s) specifically. Neither is wrong, they answer different questions.">i</span></div></div>
       <div class="kpi">
         <div class="label">Returns<span class="info-icon" tabindex="0" data-tooltip="This number counts orders, not products: an order returning 5 items and another returning 2 both count as 1 here, so this reads 2. The smaller line below shows the total product-level returns instead (7, in that example), the same count the Outcome chart's slices add up to. If these two ever look like they don't match, that's why, they're answering different questions on purpose.">i</span></div>
         <div class="value" id="kpi-count">—</div>
         <div class="delta" id="kpi-count-delta"></div>
         <div class="sub" id="kpi-count-products"></div>
+        <div class="sub" id="kpi-count-status"></div>
       </div>
     </div>
 
@@ -1595,6 +1596,7 @@
       var rows = Array.isArray(monthlyReturnRate) ? monthlyReturnRate : [];
       if (!rows.length) {
         emptyState('chart-monthly-return-rate', 'No data yet in "Return rate (monthly, by value)".');
+        document.getElementById('kpi-rate-monthly').textContent = 'Shauna\'s (monthly, by value): no data yet';
         return;
       }
       // "YYYY-MM" sorts correctly as a plain string, no date parsing needed.
@@ -1607,10 +1609,23 @@
       ]);
       var latest = m[m.length - 1];
       var latestAvg = toNum(latest['Rolling 12-mo average (%)']);
+      var latestMonth = latest['Month (YYYY-MM)'];
       document.getElementById('monthly-return-rate-legend').innerHTML =
         '<span><span class="dot" style="background:var(--series-1)"></span>12-month rolling average' +
         (latestAvg === null ? '' : ' (latest: ' + fmtPct(latestAvg) + ')') + '</span>' +
         '<span><span class="dot" style="background:var(--text-muted)"></span>Monthly rate (raw)</span>';
+
+      // Same number, surfaced next to the cohort rate in the Overview KPI
+      // tile (see that tile's info-icon for how the two differ) — latestAvg
+      // is the 12-month rolling average Juli asked to see alongside her own
+      // weekly cohort rate; falls back to the raw monthly rate on the rare
+      // month where the rolling average itself isn't populated yet (first
+      // 11 months of the source sheet's history).
+      var monthlyFigure = latestAvg !== null ? latestAvg : toNum(latest['Return rate - by value (%)']);
+      document.getElementById('kpi-rate-monthly').textContent =
+        monthlyFigure === null
+          ? 'Shauna\'s (monthly, by value): no data yet'
+          : 'Shauna\'s (monthly, by value, rolling 12mo): ' + fmtPct(monthlyFigure) + ' as of ' + latestMonth;
     })();
 
     // Initial render (no filter selected yet) — re-rendered with the actual
@@ -2164,6 +2179,30 @@
       var totalLineItems = currRows.length;
       document.getElementById('kpi-count-products').textContent =
         totalLineItems + ' total product return' + (totalLineItems === 1 ? '' : 's') + ' (across all orders)';
+
+      // Submitted vs. Processed breakdown — added 2026-10, per Juli. Counted
+      // by distinct Return ID (not by line item, and not by Order name like
+      // the headline above): a return with 3 line items shares one status,
+      // so counting line items would inflate it, and Order name isn't the
+      // right grain either (one order could in principle have more than one
+      // separate Loop return submitted against it).
+      (function () {
+        var seen = {}; // Return ID -> status, first occurrence wins (every
+        // line item of the same return repeats the same status)
+        currRows.forEach(function (r) {
+          var id = r['Return ID'];
+          if (id != null && !(id in seen)) seen[id] = r['Status (Submitted/Processed)'];
+        });
+        var submitted = 0, processed = 0, other = 0;
+        Object.keys(seen).forEach(function (id) {
+          var s = seen[id];
+          if (s === 'Submitted') submitted++;
+          else if (s === 'Processed') processed++;
+          else other++;
+        });
+        document.getElementById('kpi-count-status').textContent =
+          submitted + ' submitted · ' + processed + ' processed' + (other ? ' · ' + other + ' other' : '');
+      })();
 
       var currDays = avg(currRows.map(function (r) { return toNum(r['Days to return']); }));
       var prevDays = hasPrev ? avg(prevRows.map(function (r) { return toNum(r['Days to return']); })) : null;
